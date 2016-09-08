@@ -15,6 +15,9 @@ if (!defined ('VERSION')) {
     die ('This file can not be used on its own!');
 }
 
+// Include missing security functions from glFusion
+include_once ($_CONF['path'] . 'plugins/dokuwiki/security.inc');
+
 /**
 * Language file Include
 */
