@@ -34,7 +34,7 @@ if (!defined ('VERSION')) {
 }
 
 $LANG_DW00 = array (
-    'menulabel'         => 'DokuWiki',
+    'menulabel'         => 'Wiki',
     'plugin'            => 'DokuWiki',
     'installdoc'        => "For detailed installation instructions, please see the <a href=\"http://www.geeklog.net/wiki/doku.php?id=dokuwikiplugin:start\">DokuWiki Integration Plugin Documentation</a>",
     'readme'            => 'DokuWiki Integration Plugin Installation',
@@ -47,7 +47,7 @@ $LANG_DW00 = array (
     'uninstall'         => 'Uninstall',
     'readme'            => 'DokuWiki Integration Plugin Installation',
     'no_search_results' => 'No items were found to match your search criteria.',
-    'whats_new_prompt'  => 'DokuWiki',
+    'whats_new_prompt'  => 'Wiki',
     'whats_new_time'    => 'last %s days',
     'no_whats_new'      => 'No new items',
     'desc_wiki'         => 'Link: to a wiki page. link_text defaults to the page name. Usage: [wiki:pagename {link_text}]',
