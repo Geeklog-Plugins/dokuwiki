@@ -1,3 +1,4 @@
 ====== Adgang forbudt ======
 
-Adgang forbudt. Kanskje du har glemt å logge deg inn?
+Beklager, men du har ikke rettigheter til dette.
+

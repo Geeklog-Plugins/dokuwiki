@@ -1,8 +1,10 @@
 <?php
+
 /**
- * Basque language file
- *
+ * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
+ * 
  * @author Inko Illarramendi <inko.i.a@gmail.com>
+ * @author Zigor Astarbe <astarbe@gmail.com>
  */
 $lang['name']                  = 'Popularitate Feedback-a (denbora dezente iraun dezake kargatzen)';
 $lang['submit']                = 'Datuak Bidali';

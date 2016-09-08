@@ -6,28 +6,19 @@
  * @author     Andreas Gohr <andi@splitbrain.org>
  */
 
-//fix for Opera XMLHttpRequests
-if(!count($_POST) && !empty($HTTP_RAW_POST_DATA)){
-    parse_str($HTTP_RAW_POST_DATA, $_POST);
-}
-
 if(!defined('DOKU_INC')) define('DOKU_INC',dirname(__FILE__).'/../../');
-
-//Geeklog CMS
-if (file_exists('../../../lib-common.php')) require_once ('../../../lib-common.php');
-
+require_once DOKU_INC.'../lib-common.php';
 require_once(DOKU_INC.'inc/init.php');
 //close session
 session_write_close();
 
 header('Content-Type: text/html; charset=utf-8');
 
-
 //call the requested function
-if(isset($_POST['call'])){
-    $call = $_POST['call'];
-}else if(isset($_GET['call'])){
-    $call = $_GET['call'];
+if($INPUT->post->has('call')){
+    $call = $INPUT->post->str('call');
+}else if($INPUT->get->has('call')){
+    $call = $INPUT->get->str('call');
 }else{
     exit;
 }
@@ -51,12 +42,16 @@ if(function_exists($callfn)){
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function ajax_qsearch(){
-    global $conf;
     global $lang;
+    global $INPUT;
 
-    $query = $_POST['q'];
-    if(empty($query)) $query = $_GET['q'];
+    $maxnumbersuggestions = 50;
+
+    $query = $INPUT->post->str('q');
+    if(empty($query)) $query = $INPUT->get->str('q');
     if(empty($query)) return;
+
+    $query = urldecode($query);
 
     $data = ft_pageLookup($query, true, useHeading('navigation'));
 
@@ -64,6 +59,7 @@ function ajax_qsearch(){
 
     print '<strong>'.$lang['quickhits'].'</strong>';
     print '<ul>';
+    $counter = 0;
     foreach($data as $id => $title){
         if (useHeading('navigation')) {
             $name = $title;
@@ -76,6 +72,12 @@ function ajax_qsearch(){
             }
         }
         echo '<li>' . html_wikilink(':'.$id,$name) . '</li>';
+
+        $counter ++;
+        if($counter > $maxnumbersuggestions) {
+            echo '<li>...</li>';
+            break;
+        }
     }
     print '</ul>';
 }
@@ -87,14 +89,12 @@ function ajax_qsearch(){
  * @author Mike Frysinger <vapier@gentoo.org>
  */
 function ajax_suggestions() {
-    global $conf;
-    global $lang;
+    global $INPUT;
 
-    $query = cleanID($_POST['q']);
-    if(empty($query)) $query = cleanID($_GET['q']);
+    $query = cleanID($INPUT->post->str('q'));
+    if(empty($query)) $query = cleanID($INPUT->get->str('q'));
     if(empty($query)) return;
 
-    $data = array();
     $data = ft_pageLookup($query);
     if(!count($data)) return;
     $data = array_keys($data);
@@ -129,8 +129,9 @@ function ajax_lock(){
     global $lang;
     global $ID;
     global $INFO;
+    global $INPUT;
 
-    $ID = cleanID($_POST['id']);
+    $ID = cleanID($INPUT->post->str('id'));
     if(empty($ID)) return;
 
     $INFO = pageinfo();
@@ -145,15 +146,15 @@ function ajax_lock(){
         echo 1;
     }
 
-    if($conf['usedraft'] && $_POST['wikitext']){
+    if($conf['usedraft'] && $INPUT->post->str('wikitext')){
         $client = $_SERVER['REMOTE_USER'];
         if(!$client) $client = clientIP(true);
 
         $draft = array('id'     => $ID,
-                'prefix' => substr($_POST['prefix'], 0, -1),
-                'text'   => $_POST['wikitext'],
-                'suffix' => $_POST['suffix'],
-                'date'   => (int) $_POST['date'],
+                'prefix' => substr($INPUT->post->str('prefix'), 0, -1),
+                'text'   => $INPUT->post->str('wikitext'),
+                'suffix' => $INPUT->post->str('suffix'),
+                'date'   => $INPUT->post->int('date'),
                 'client' => $client,
                 );
         $cname = getCacheName($draft['client'].$ID,'.draft');
@@ -170,7 +171,8 @@ function ajax_lock(){
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function ajax_draftdel(){
-    $id = cleanID($_REQUEST['id']);
+    global $INPUT;
+    $id = cleanID($INPUT->str('id'));
     if(empty($id)) return;
 
     $client = $_SERVER['REMOTE_USER'];
@@ -187,21 +189,20 @@ function ajax_draftdel(){
  */
 function ajax_medians(){
     global $conf;
+    global $INPUT;
 
     // wanted namespace
-    $ns  = cleanID($_POST['ns']);
+    $ns  = cleanID($INPUT->post->str('ns'));
     $dir  = utf8_encodeFN(str_replace(':','/',$ns));
 
     $lvl = count(explode(':',$ns));
 
     $data = array();
     search($data,$conf['mediadir'],'search_index',array('nofiles' => true),$dir);
-    foreach($data as $item){
-        $item['level'] = $lvl+1;
-        echo media_nstree_li($item);
-        echo media_nstree_item($item);
-        echo '</li>';
+    foreach(array_keys($data) as $item){
+        $data[$item]['level'] = $lvl+1;
     }
+    echo html_buildlist($data, 'idx', 'media_nstree_item', 'media_nstree_li');
 }
 
 /**
@@ -210,11 +211,101 @@ function ajax_medians(){
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function ajax_medialist(){
-    global $conf;
     global $NS;
+    global $INPUT;
 
-    $NS = $_POST['ns'];
-    tpl_mediaContent(true);
+    $NS = cleanID($INPUT->post->str('ns'));
+    $sort = $INPUT->post->bool('recent') ? 'date' : 'natural';
+    if ($INPUT->post->str('do') == 'media') {
+        tpl_mediaFileList();
+    } else {
+        tpl_mediaContent(true, $sort);
+    }
+}
+
+/**
+ * Return the content of the right column
+ * (image details) for the Mediamanager
+ *
+ * @author Kate Arzamastseva <pshns@ukr.net>
+ */
+function ajax_mediadetails(){
+    global $IMG, $JUMPTO, $REV, $fullscreen, $INPUT;
+    $fullscreen = true;
+    require_once(DOKU_INC.'lib/exe/mediamanager.php');
+
+    $image = '';
+    if ($INPUT->has('image')) $image = cleanID($INPUT->str('image'));
+    if (isset($IMG)) $image = $IMG;
+    if (isset($JUMPTO)) $image = $JUMPTO;
+    $rev = false;
+    if (isset($REV) && !$JUMPTO) $rev = $REV;
+
+    html_msgarea();
+    tpl_mediaFileDetails($image, $rev);
+}
+
+/**
+ * Returns image diff representation for mediamanager
+ * @author Kate Arzamastseva <pshns@ukr.net>
+ */
+function ajax_mediadiff(){
+    global $NS;
+    global $INPUT;
+
+    $image = '';
+    if ($INPUT->has('image')) $image = cleanID($INPUT->str('image'));
+    $NS = getNS($image);
+    $auth = auth_quickaclcheck("$NS:*");
+    media_diff($image, $NS, $auth, true);
+}
+
+function ajax_mediaupload(){
+    global $NS, $MSG, $INPUT;
+
+    $id = '';
+    if ($_FILES['qqfile']['tmp_name']) {
+        $id = $INPUT->post->str('mediaid', $_FILES['qqfile']['name']);
+    } elseif ($INPUT->get->has('qqfile')) {
+        $id = $INPUT->get->str('qqfile');
+    }
+
+    $id = cleanID($id);
+
+    $NS = $INPUT->str('ns');
+    $ns = $NS.':'.getNS($id);
+
+    $AUTH = auth_quickaclcheck("$ns:*");
+    if($AUTH >= AUTH_UPLOAD) { io_createNamespace("$ns:xxx", 'media'); }
+
+    if ($_FILES['qqfile']['error']) unset($_FILES['qqfile']);
+
+    $res = false;
+    if ($_FILES['qqfile']['tmp_name']) $res = media_upload($NS, $AUTH, $_FILES['qqfile']);
+    if ($INPUT->get->has('qqfile')) $res = media_upload_xhr($NS, $AUTH);
+
+    if($res) {
+        $result = array(
+            'success' => true,
+            'link' => media_managerURL(array('ns' => $ns, 'image' => $NS . ':' . $id), '&'),
+            'id' => $NS . ':' . $id,
+            'ns' => $NS
+        );
+    } else {
+        $error = '';
+        if(isset($MSG)) {
+            foreach($MSG as $msg) {
+                $error .= $msg['msg'];
+            }
+        }
+        $result = array(
+            'error' => $error,
+            'ns' => $NS
+        );
+    }
+    $json = new JSON;
+    header('Content-Type: application/json');
+    echo $json->encode($result);
 }
 
 /**
@@ -224,23 +315,20 @@ function ajax_medialist(){
  */
 function ajax_index(){
     global $conf;
+    global $INPUT;
 
     // wanted namespace
-    $ns  = cleanID($_POST['idx']);
+    $ns  = cleanID($INPUT->post->str('idx'));
     $dir  = utf8_encodeFN(str_replace(':','/',$ns));
 
     $lvl = count(explode(':',$ns));
 
     $data = array();
     search($data,$conf['datadir'],'search_index',array('ns' => $ns),$dir);
-    foreach($data as $item){
-        $item['level'] = $lvl+1;
-        echo html_li_index($item);
-        echo '<div class="li">';
-        echo html_list_index($item);
-        echo '</div>';
-        echo '</li>';
+    foreach(array_keys($data) as $item){
+        $data[$item]['level'] = $lvl+1;
     }
+    echo html_buildlist($data, 'idx', 'html_list_index', 'html_li_index');
 }
 
 /**
@@ -251,8 +339,9 @@ function ajax_index(){
 function ajax_linkwiz(){
     global $conf;
     global $lang;
+    global $INPUT;
 
-    $q  = ltrim(trim($_POST['q']),':');
+    $q  = ltrim(trim($INPUT->post->str('q')),':');
     $id = noNS($q);
     $ns = getNS($q);
 
@@ -260,13 +349,11 @@ function ajax_linkwiz(){
     $id = cleanID($id);
 
     $nsd  = utf8_encodeFN(str_replace(':','/',$ns));
-    $idd  = utf8_encodeFN(str_replace(':','/',$id));
 
     $data = array();
     if($q && !$ns){
 
         // use index to lookup matching pages
-        $pages = array();
         $pages = ft_pageLookup($id,true);
 
         // result contains matches in pages and namespaces
@@ -343,7 +430,7 @@ function ajax_linkwiz(){
 
         echo '<a href="'.$link.'" title="'.htmlspecialchars($item['id']).'" class="wikilink1">'.$name.'</a>';
 
-        if($item['title']){
+        if(!blank($item['title'])){
             echo '<span>'.htmlspecialchars($item['title']).'</span>';
         }
         echo '</div>';

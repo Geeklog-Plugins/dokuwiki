@@ -47,8 +47,6 @@
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * @category
- * @package
  * @author      Michal Migurski <mike-json@teczno.com>
  * @author      Matt Knapp <mdknapp[at]gmail[dot]com>
  * @author      Brett Stimmerman <brettstimmerman[at]gmail[dot]com>
@@ -97,19 +95,6 @@ define('JSON_STRICT_TYPE', 11);
 
 /**
  * Converts to and from JSON format.
- *
- * @category
- * @package
- * @author     Michal Migurski <mike-json@teczno.com>
- * @author     Matt Knapp <mdknapp[at]gmail[dot]com>
- * @author     Brett Stimmerman <brettstimmerman[at]gmail[dot]com>
- * @copyright  2005 Michal Migurski
- * @license    http://www.php.net/license/3_0.txt  PHP License 3.0
- * @version
- * @link
- * @see
- * @since
- * @deprecated
  */
 class JSON {
 
@@ -134,7 +119,7 @@ class JSON {
      *                               JSON_LOOSE_TYPE - loose typing
      *                                                 "{...}" syntax creates associative arrays in decode.
      */
-    function JSON($use=JSON_STRICT_TYPE) {
+    function __construct($use=JSON_STRICT_TYPE) {
         $this->use = $use;
     }
 
@@ -151,7 +136,9 @@ class JSON {
      * @access   public
      */
     function encode($var) {
-        //if (function_exists('json_encode')) return json_encode($var);
+        if (!$this->skipnative && function_exists('json_encode')){
+            return json_encode($var);
+        }
         switch (gettype($var)) {
             case 'boolean':
                 return $var ? 'true' : 'false';
@@ -297,7 +284,7 @@ class JSON {
 
                 // treat as a JSON object
                 if (is_array($var) && count($var) && (array_keys($var) !== range(0, count($var) - 1))) {
-                    return sprintf('{ %s }', join(',', array_map(array($this, 'name_value'),
+                    return sprintf('{%s}', join(',', array_map(array($this, 'name_value'),
                                                                array_keys($var),
                                                                array_values($var))));
                 }
@@ -307,7 +294,7 @@ class JSON {
 
             case 'object':
                 $vars = get_object_vars($var);
-                return sprintf('{ %s }', join(',', array_map(array($this, 'name_value'),
+                return sprintf('{%s}', join(',', array_map(array($this, 'name_value'),
                                                            array_keys($vars),
                                                            array_values($vars))));
 
@@ -582,17 +569,17 @@ class JSON {
 
                             }
 
-                        } elseif ((($chrs{$c} == '"') || ($chrs{$c} == "'")) &&
-                                 in_array($top['what'], array(JSON_SLICE, JSON_IN_ARR, JSON_IN_OBJ))) {
+                        } elseif ((($chrs{$c} == '"') || ($chrs{$c} == "'")) && ($top['what'] != JSON_IN_STR)) {
                             // found a quote, and we are not inside a string
                             array_push($stk, array('what' => JSON_IN_STR, 'where' => $c, 'delim' => $chrs{$c}));
                             //print("Found start of string at {$c}\n");
 
                         } elseif (($chrs{$c} == $top['delim']) &&
                                  ($top['what'] == JSON_IN_STR) &&
-                                 (($chrs{$c - 1} != "\\") ||
-                                 ($chrs{$c - 1} == "\\" && $chrs{$c - 2} == "\\"))) {
+                                 ((strlen(substr($chrs, 0, $c)) - strlen(rtrim(substr($chrs, 0, $c), '\\'))) % 2 != 1)) {
                             // found a quote, we're in a string, and it's not escaped
+                            // we know that it's not escaped becase there is _not_ an
+                            // odd number of backslashes at the end of the string so far
                             array_pop($stk);
                             //print("Found end of string at {$c}: ".substr($chrs, $top['where'], (1 + 1 + $c - $top['where']))."\n");
 

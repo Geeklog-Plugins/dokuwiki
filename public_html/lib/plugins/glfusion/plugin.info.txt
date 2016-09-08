@@ -1,0 +1,7 @@
+base   glfusion
+author Mark R. Evans
+email  mark@glfusion.org
+date   2015-05-21
+name   glFusion CMS Integration Plugin
+desc   Allows DokuWiki to integrate with core glFusion CMS functions such as auto tags, what's new block, search, etc.
+url    http://www.glfusion.org/wiki/dokuwikiplugin:start

@@ -1,40 +1,18 @@
 <?php
-// +---------------------------------------------------------------------------+
-// | Dokuwiki Plugin 1.8.0                                                     |
-// +---------------------------------------------------------------------------+
-// | functions.inc                                                             |
-// |                                                                           |
-// +---------------------------------------------------------------------------+
-// | Copyright (C) 2010 by the following authors:                              |
-// |                                                                           |
-// | Ben - ben AT geeklog DOT fr                                               |
-// |                                                                           |
-// | Based on the original Dokuwiki Plugin                                     |
-// | Copyright (C) 2006-2008 by the following authors:                         |
-// | Mark R. Evans - mark AT glfusion DOT org                                  |
-// +---------------------------------------------------------------------------+
-// |                                                                           |
-// | This program is free software; you can redistribute it and/or             |
-// | modify it under the terms of the GNU General Public License               |
-// | as published by the Free Software Foundation; either version 2            |
-// | of the License, or (at your option) any later version.                    |
-// |                                                                           |
-// | This program is distributed in the hope that it will be useful,           |
-// | but WITHOUT ANY WARRANTY; without even the implied warranty of            |
-// | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             |
-// | GNU General Public License for more details.                              |
-// |                                                                           |
-// | You should have received a copy of the GNU General Public License         |
-// | along with this program; if not, write to the Free Software Foundation,   |
-// | Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.           |
-// |                                                                           |
-// +---------------------------------------------------------------------------+
-//
+/**
+* glFusion CMS
+*
+* DokuWiki Integration
+*
+* @license GNU General Public License version 2 or later
+*     http://www.opensource.org/licenses/gpl-license.php
+*
+*  Copyright (C) 2006-2015 by the following authors:
+*   Mark R. Evans   mark AT glfusion DOT org
+*/
 
-// this file can't be used on its own
-if (strpos ($_SERVER['PHP_SELF'], 'functions.inc') !== false)
-{
-    die ('This file can not be used on its own.');
+if (!defined ('VERSION')) {
+    die ('This file can not be used on its own!');
 }
 
 /**
@@ -58,7 +36,7 @@ $_DW_CONF = $c->get_config('dokuwiki');
 
 if(!defined('DOKU_INC')) define('DOKU_INC',$_CONF['path_html'] . $_DW_CONF['public_dir']);
 
-// set the language for the wiki
+include $_CONF['path_html'].$_DW_CONF['public_dir'].'conf/local.php';
 
 if (isset($_USER['language']) ) {
     $lang = $_USER['language'];
@@ -67,25 +45,488 @@ if (isset($_USER['language']) ) {
 }
 $conf['lang'] = $_CONF['iso_lang'];
 
+
+function plugin_access_dokuwiki()
+{
+    global $_DW_CONF, $_CONF, $USERINFO;
+
+    $display = '';
+
+    // must validate user session and ensure it is properly protected to
+    // prevent injection issues...
+    $itoa64 = './0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    $pwd = $USERINFO['pass'];
+    $dwsh = _hash_gensalt_private($pwd, $itoa64);
+
+    if ( COM_isAnonUser() && ( $_DW_CONF['loginrequired'] == 1 || $_CONF['loginrequired'] == 1) )  {
+        $display = COM_siteHeader();
+        $display .= SEC_loginRequiredForm();
+        $display .= COM_siteFooter();
+        echo $display;
+        exit;
+    }
+    if ($_DW_CONF['restrict_to_group'] != '' ) {
+        if ( !SEC_inGroup($_DW_CONF['restrict_to_group']) ) {
+            COM_errorLog("Someone has tried to access a restricted DokuWiki page.  User id: {$_USER['uid']}, Username: {$_USER['username']}, IP: $REMOTE_ADDR",1);
+            COM_404();
+            exit;
+        }
+    }
+    return true;
+}
 /**
-* This will put an option for the plugin in the command and control block on moderation.php
+* Implements the [wiki:] autotag.
 *
-* Add the plugin name, icon and link to the command and control block in moderation.php
+*/
+function plugin_autotags_dokuwiki ($op, $content = '', $autotag = '')
+{
+    global $_CONF, $_DW_CONF, $LANG_DW00, $conf;
+
+    if ($op == 'tagname' ) {
+        return array('wiki');
+    } else if ($op == 'tagusage') {
+        $tagUsage = array(
+            array('namespace' => 'dokuwiki','usage' => 'page')
+        );
+        return $tagUsage;
+    } else if ($op == 'desc' ) {
+        return $LANG_DW00['desc_wiki'];
+    } else if ($op == 'parse') {
+        if ( ($autotag['tag'] == 'wiki') ) {
+            $dwId    = (isset($autotag['parm1']) ? $autotag['parm1'] : '');
+            $caption = (isset($autotag['parm2']) ? $autotag['parm2'] : '');
+            if ( empty($dwId) ) {
+                $content = str_replace ($autotag['tagstr'], '', $content);
+                return $content;
+            }
+            if ( isset($conf['userewrite']) ) {
+                switch ($conf['userewrite']) {
+                    case 2 :
+                        $link = '<a href="'.$_CONF['site_url'].$_DW_CONF['public_dir'].'doku.php/'.$dwId.'">';
+                        break;
+                    case 1 :
+                        $link = '<a href="'.$_CONF['site_url'].$_DW_CONF['public_dir'].''.$dwId.'">';
+                        break;
+                    default :
+                        $link = '<a href="'.$_CONF['site_url'].$_DW_CONF['public_dir'].'doku.php?id='.$dwId.'">';
+                        break;
+                 }
+            } else {
+                $link = '<a href="'.$_CONF['site_url'].$_DW_CONF['public_dir'].'doku.php?id='.$dwId.'">';
+            }
+
+            if ( empty($caption) || $caption == '' ) {
+                $caption = $dwId;
+            }
+            $dwTag = $link.$caption.'</a>';
+            $content = str_replace ($autotag['tagstr'], $dwTag, $content);
+            return $content;
+        } else {
+            return $content;
+        }
+    }
+}
+
+
+/**
+* This will put an option for the plugin in the command and control block on
+* moderation.php
+*
+* Add the plugin name, icon and link to the command and control block in
+* moderation.php
 *
 * @return   array   Array containing (plugin name, admin url, url of plugin icon)
 *
 */
-
-function plugin_cclabel_dokuwiki() {
+function plugin_cclabel_dokuwiki()
+{
     global $_CONF, $_DW_CONF;
 
     if (SEC_inGroup('Root') ) {
         return array('DokuWiki',
-            $_CONF['site_url'] . $_DW_CONF['public_dir'] . 'doku.php?do=admin&amp;id=start',
-            $_CONF['site_url'] . $_DW_CONF['public_dir'] . 'dokuwiki.png');
+            $_CONF['site_url'].$_DW_CONF['public_dir'].'doku.php?do=admin&amp;id=start',
+            $_CONF['site_url'].$_DW_CONF['public_dir'].'dokuwiki.png');
     } else {
         return '';
     }
+}
+
+
+/**
+* Return the current version of code.
+* Used in the Plugin Editor to show the registered version and code version
+*/
+function plugin_chkVersion_dokuwiki()
+{
+    global $_DW_CONF;
+
+    return $_DW_CONF['pi_version'];
+}
+
+
+/**
+* this searches for pages matching the user query and returns an array of
+* for the header and table rows back to search.php where it will be formated and
+* printed
+*
+* @query            string          Keywords user is looking for
+* @datestart        date/time       Start date to get results for
+* @dateend          date/time       End date to get results for
+* @topic            string          The topic they were searching in
+* @type             string          Type of items they are searching
+* @author           string          Get all results by this author
+*
+*/
+function plugin_dopluginsearch_dokuwiki($query, $datestart, $dateend, $topic, $type, $author, $keyType, $page, $perpage)
+{
+    global $conf, $QUERY, $ID, $LANG_DW00, $_CONF, $_DW_CONF, $_USER;
+
+    if ( $_DW_CONF['disable_search_integration'] == 1) {
+        return '';
+    }
+    if ( COM_isAnonUser() && ( $_DW_CONF['loginrequired'] == 1 || $_CONF['loginrequired'] == 1) )  {
+        return '';
+    }
+    if ($_DW_CONF['restrict_to_group'] != '' ) {
+        if (!SEC_inGroup($_DW_CONF['restrict_to_group'])) {
+            return '';
+        }
+    }
+    if ($type <> 'all' AND $type <> 'dokuwiki') {
+        return '';
+    }
+    if ($keyType == 'any') {
+        $searchQuery = str_replace(' ', " " . 'OR' . " ", $query);
+    } else if ($keyType == 'all') {
+        $searchQuery = str_replace(' ', " " . 'AND' . " ", $query);
+    } else {
+        $searchQuery = '"'.$query.'"';
+    }
+
+    $pages = plugin_executepluginsearch_dokuwiki($query, 0, $perpage, $keyType);
+    
+    $search = new SearchCriteria('dokuwiki', 'DokuWiki','text');
+    $num_results = _return_search_count($searchQuery);
+    //$search->setNumResults($num_results);
+    $search->setResults($pages);
+    $search->setRank(4);
+    return $search;
+}
+
+
+/**
+* this searches for pages matching the user query and returns an array of
+* for the header and table rows back to search.php where it will be formated and
+* printed
+*
+*/
+function plugin_executepluginsearch_dokuwiki($query, $offset, $limit,$keyType)
+{
+    global $conf, $QUERY, $ID, $LANG_DW00, $_CONF, $_DW_CONF, $_USER;
+
+    $results = array();
+
+    if ( $_DW_CONF['disable_search_integration'] == 1) {
+        return '';
+    }
+    if ( COM_isAnonUser() && ( $_DW_CONF['loginrequired'] == 1 || $_CONF['loginrequired'] == 1) )  {
+        return '';
+    }
+    if ( $_DW_CONF['restrict_to_group'] != '' ) {
+        if (!SEC_inGroup($_DW_CONF['restrict_to_group'])) {
+            return '';
+        }
+    }
+    if ( empty($type) ) {
+        $type = 'all';
+    }
+    if ($type <> 'all' AND $type <> 'dokuwiki') {
+        return '';
+    }
+    require_once (DOKU_INC.'inc/init.php');
+
+    if ($keyType == 'any') {
+        $searchQuery = str_replace(' ', " OR ", $query);
+    } else if ($keyType == 'all') {
+        $searchQuery = str_replace(' ', " AND ", $query);
+    } else {
+        $searchQuery = '"'.$query.'"';
+    }
+    $QUERY = $searchQuery;
+    //check if search is restricted to namespace
+    if ( preg_match('/([^@]*)@([^@]*)/',$QUERY,$match) ) {
+        $id = cleanID($match[1]);
+        if ( empty($id) ) {
+            return '';
+        }
+    } else {
+        $id = cleanID($QUERY);
+    }
+    $data = array();
+    $data = ft_pageSearch($QUERY,$poswords);
+
+    if ( count($data) < $offset ) {
+        return '';
+    }
+    if ( count($data) ) {
+        $num = 0;
+        $found = 0;
+        foreach( $data as $id => $cnt ) {
+            if ( $num < $offset ) {
+                $num++;
+                continue;
+            }
+            if ( $found >= $limit ) {
+                break;
+            }
+            $row = array();
+            $fqn = wikiFN($id);
+            $date = stat($fqn);
+            $row['id'] = $id;
+            $row['title'] = $id;
+            $row['hits'] = $cnt;
+            $row['description'] = ft_snippet($id,$poswords);
+            $row['date'] = $date['mtime'];
+
+            if ( isset($conf['userewrite']) ) {
+                switch ($conf['userewrite']) {
+                    case 2 :
+                        $row['url'] = $_CONF['site_url'].$_DW_CONF['public_dir'].'doku.php/'.$id;
+                        break;
+                    case 1 :
+                        $row['url'] = $_CONF['site_url'].$_DW_CONF['public_dir'].''.$id;
+                        break;
+                    default :
+                        $row['url'] = $_CONF['site_url'].$_DW_CONF['public_dir'].'doku.php?id='.$id;
+                        break;
+                 }
+            } else {
+                $row['url'] = $_CONF['site_url'].$_DW_CONF['public_dir'].'doku.php?id='.$id;
+            }
+            $result[] = $row;
+            $found++;
+            $num++;
+        }
+    } else {
+        return '';
+    }
+
+    $direction = SORT_ASC;
+    $column = array();
+    foreach ($result as $sortarray) {
+        $column[] = $sortarray[ 'date' ];
+    }
+    array_multisort($column, $direction, $result);
+
+    return $result;
+}
+
+/**
+* Return the number of items found in search
+*
+*/
+function _return_search_count($query)
+{
+    global $QUERY, $ID, $LANG_DW00,$_CONF,$_DW_CONF,$_USER;
+
+    if ( $_DW_CONF['disable_search_integration'] == 1) {
+        return 0;
+    }
+    if ( COM_isAnonUser() && ( $_DW_CONF['loginrequired'] == 1 || $_CONF['loginrequired'] == 1) )  {
+        return 0;
+    }
+    if ($_DW_CONF['restrict_to_group'] != '' ) {
+        if (!SEC_inGroup($_DW_CONF['restrict_to_group'])) {
+            return 0;
+        }
+    }
+    require_once DOKU_INC.'inc/init.php';
+
+    //check if search is restricted to namespace
+    if ( preg_match('/([^@]*)@([^@]*)/',$QUERY,$match) ) {
+        $id = cleanID($match[1]);
+        if(empty($id)) {
+            return 0;
+        }
+    } else {
+        $id = cleanID($QUERY);
+    }
+
+    $QUERY = $query;
+    //check if search is restricted to namespace
+    if ( preg_match('/([^@]*)@([^@]*)/',$QUERY,$match) ) {
+        $id = cleanID($match[1]);
+        if(empty($id)) {
+            return 0;
+        }
+    } else {
+        $id = cleanID($QUERY);
+    }
+    $data = array();
+    $data = ft_pageSearch($QUERY,$poswords);
+    return (count($data));
+}
+
+/**
+* glFusion is asking us to provide any items that show up in the type
+* drop-down on search.php.  Let's users search the dokuwiki pages.
+*
+* @return   array   (plugin name/entry title) pair for the dropdown
+*
+*/
+function plugin_searchtypes_dokuwiki()
+{
+    global $_CONF, $_DW_CONF, $_USER, $LANG_DW00;
+
+    $tmp = array();
+
+    if ( COM_isAnonUser() && ( $_DW_CONF['loginrequired'] == 1 || $_CONF['loginrequired'] == 1) )  {
+        return '';
+    }
+    if ($_DW_CONF['restrict_to_group'] != '' ) {
+        if (!SEC_inGroup($_DW_CONF['restrict_to_group'])) {
+            return '';
+        }
+    }
+
+    $tmp['dokuwiki'] = $LANG_DW00['menulabel'];
+    return $tmp;
+}
+
+/**
+* Return information for an wiki page
+*
+* @param    string  $id         page ID
+* @param    string  $what       comma-separated list of properties
+* @param    int     $uid        user ID or 0 = current user
+* @param    array   $options    (reserved for future extensions)
+* @return   mixed               string or array of strings with the information
+*
+*/
+function plugin_getiteminfo_dokuwiki($id, $what, $uid = 0, $options = array())
+{
+    global $_CONF, $_TABLES, $conf, $_DW_CONF,$LANG_DW00;
+
+    require_once DOKU_INC.'inc/init.php';
+
+    $properties = explode(',', $what);
+
+    $props = array();
+    foreach ($properties as $p) {
+        switch ($p) {
+            case 'excerpt':
+                $props[$p] = p_wiki_xhtml_summary($id);
+                break;
+            case 'description':
+                $props[$p] = p_wiki_xhtml($id);
+                break;
+            case 'raw-description' :
+                $props[$p] =  rawWiki($id);
+                break;
+            case 'id':
+                $props['id'] = $id;
+                break;
+            case 'title':
+                $props['title'] = $id;
+                break;
+            case 'url':
+                if ( isset($conf['userewrite']) ) {
+                    switch ($conf['userewrite']) {
+                        case 2 :
+                            $props['url'] = $_CONF['site_url'].$_DW_CONF['public_dir'].'doku.php/'.$id;
+                            break;
+                        case 1 :
+                            $props['url'] = $_CONF['site_url'].$_DW_CONF['public_dir'].''.$id;
+                            break;
+                        default :
+                            $props['url'] = $_CONF['site_url'].$_DW_CONF['public_dir'].'doku.php?id='.$id;
+                            break;
+                     }
+                } else {
+                    $props['url'] = $_CONF['site_url'].$_DW_CONF['public_dir'].'doku.php?id='.$id;
+                }
+                break;
+            case 'label':
+                $props['label'] = $LANG_DW00['menulabel'];
+                break;
+            case 'status' :
+                $props['status'] = 1;
+                break;
+            default:
+                $props[$p] = '';
+                break;
+        }
+    }
+
+    $mapped = array();
+    foreach ($props as $key => $value) {
+        if ($id == '*') {
+            if ($value != '') {
+                $mapped[$key] = $value;
+            }
+        } else {
+            $mapped[$key] = $value;
+        }
+    }
+
+    if ($id == '*') {
+        $retval[] = $mapped;
+    } else {
+        $retval = $mapped;
+    }
+
+    if (($id != '*') && (count($retval) == 1)) {
+        $retval = $retval[0];
+    }
+
+    return $retval;
+}
+
+
+/**
+* Returns the administrative option for this plugin
+*
+* Adds the plugin to the Admin menu
+*
+* @return   array   Array containing (plugin name, plugin admin url, # of items
+*                   in plugin or '')
+*
+*/
+function plugin_getadminoption_dokuwiki()
+{
+    global $_CONF, $_DW_CONF;
+
+    if (SEC_inGroup('Root')) {
+        return array('DokuWiki',$_CONF['site_url'] . $_DW_CONF['public_dir'] . 'doku.php?do=admin&amp;id=start','');
+    }
+}
+
+
+/**
+* Returns the items for this plugin that should appear on the main menu
+*
+* NOTE: this MUST return the url/value pairs in the following format
+* $<arrayname>[<label>] = <url>
+*
+* @return   mixed   menu entry, or boolean false if disabled / hidden
+*
+*/
+function plugin_getmenuitems_dokuwiki()
+{
+    global $_CONF, $_DW_CONF, $_USER, $LANG_DW00;
+
+    $menuitems = array();
+
+    if ( COM_isAnonUser() && ( $_DW_CONF['loginrequired'] == 1 || $_CONF['loginrequired'] == 1) )  {
+        return '';
+    }
+    if ($_DW_CONF['restrict_to_group'] != '' ) {
+        if (!SEC_inGroup($_DW_CONF['restrict_to_group'])) {
+            return '';
+        }
+    }
+    $menuitems[$LANG_DW00['menulabel']] = $_CONF['site_url'] . $_DW_CONF['public_dir'] . 'doku.php';
+    return $menuitems;
 }
 
 /**
@@ -114,277 +555,120 @@ function plugin_whatsnewsupported_dokuwiki() {
     return '';
 }
 
-function plugin_getwhatsnew_dokuwiki() {
-    global $conf;
-    global $QUERY;
-    global $ID;
-    global $LANG_DW00;
-    global $_CONF;
-    global $_DW_CONF;
+/**
+* Return new pages for the What's New block
+*
+* @return   string  HTML list of new pages
+*
+*/
+function plugin_getwhatsnew_dokuwiki()
+{
+    global $conf, $QUERY, $ID, $LANG_DW00, $_CONF, $_DW_CONF;
 
-	if ( COM_isAnonUser() && ( $_DW_CONF['loginrequired'] == 1 || $_CONF['loginrequired'] == 1) )  {
+    if ( $_DW_CONF['enable_whats_new'] != true ) return;
+
+    if ( COM_isAnonUser() && ( $_DW_CONF['loginrequired'] == 1 || $_CONF['loginrequired'] == 1) )  {
         return;
     }
-	
-    if (!file_exists($_CONF['path_html'] . $_DW_CONF['public_dir'] . 'data/meta/_dokuwiki.changes') ) {
-		return $LANG_DW00['no_whats_new'] . '<br />';
+    if ($_DW_CONF['restrict_to_group'] != '' ) {
+        if (!SEC_inGroup($_DW_CONF['restrict_to_group'])) {
+            return;
+        }
     }
-
+    if (!file_exists($_CONF['path_html'] . $_DW_CONF['public_dir'] . 'data/meta/_dokuwiki.changes') ) {
+		return '';
+    }
     $count = 0;
     $cutoff = time() - (86400 * $_DW_CONF['whats_new_days']);
 
-    require_once(DOKU_INC.'inc/init.php');
-    require_once(DOKU_INC.'inc/common.php');
-    require_once(DOKU_INC.'inc/events.php');
-    require_once(DOKU_INC.'inc/pageutils.php');
-    require_once(DOKU_INC.'inc/html.php');
-    require_once(DOKU_INC.'inc/auth.php');
-    require_once(DOKU_INC.'inc/actions.php');
-    require_once(DOKU_INC.'inc/changelog.php');
+    require_once DOKU_INC.'inc/init.php';
 
     if ( !isset($_DW_CONF['whatsnew_length']) || $_DW_CONF['whatsnew_length'] == 0 ) {
-        $_DW_CONF['whatsnew_length'] = 20;
+        $_DW_CONF['whatsnew_length'] = $_CONF['title_trim_length'];
     }
 
     $recent = array();
     $items  = array();
     $recent = getRecents(0,20,'',0);
-	
+
     foreach ($recent as $item => $stuff) {
         if ( $stuff['date'] > $cutoff ) {
-            $items[] = '<a href="' . $_CONF['site_url'] . $_DW_CONF['public_dir'] . 'doku.php?id=' . $stuff['id'] . '" title="' . $stuff['id'] . '">' . COM_truncate($stuff['id'],$_DW_CONF['whatsnew_length'],'') . '</a>';
+            if ( isset($conf['userewrite']) ) {
+                switch ($conf['userewrite']) {
+                    case 2 :
+                        $items[] = '<a href="'.$_CONF['site_url'].$_DW_CONF['public_dir'].'doku.php/'.$stuff['id'] . '" title="' . $stuff['id'].'">' . COM_truncate($stuff['id'],$_DW_CONF['whatsnew_length'],'') . '</a>';
+                        break;
+                    case 1 :
+                        $items[] = '<a href="'.$_CONF['site_url'].$_DW_CONF['public_dir'].''.$stuff['id'] . '" title="' . $stuff['id'].'">' . COM_truncate($stuff['id'],$_DW_CONF['whatsnew_length'],'') . '</a>';
+                        break;
+                    default :
+                        $items[] = '<a href="'.$_CONF['site_url'].$_DW_CONF['public_dir'].'doku.php?id='.$stuff['id'] . '" title="' . $stuff['id'].'">' . COM_truncate($stuff['id'],$_DW_CONF['whatsnew_length'],'') . '</a>';
+                        break;
+                 }
+            } else {
+                $items[] = '<a href="'.$_CONF['site_url'].$_DW_CONF['public_dir'].'doku.php?id='.$stuff['id'] . '" title="' . $stuff['id'].'">' . COM_truncate($stuff['id'],$_DW_CONF['whatsnew_length'],'') . '</a>';
+            }
+
             $count++;
         }
     }
     if ( $count == 0 ) {
-        return $LANG_DW00['no_whats_new'] .  '<br />';
+        return $LANG_DW00['no_whats_new'];
     }
+    
     return $items;
 }
 
-
-
-/**
-* Returns the administrative option for this plugin
-*
-* Adds the plugin to the Admin menu
-*
-* Universal Plugin:  Modify/Uncomment use it
-*
-* @return   array   Array containing (plugin name, plugin admin url, # of items in plugin or '')
-*
+/*
+* return the administrative heading
 */
-function plugin_getadminoption_dokuwiki() {
-    global $_CONF, $_DW_CONF;
-
-    if (SEC_inGroup('Root')) {
-        return array('DokuWiki',$_CONF['site_url'] . $_DW_CONF['public_dir'] . 'doku.php?do=admin&amp;id=start','');
-    }
-}
-
-function plugin_getmenuitems_dokuwiki() {
-    global $_CONF, $_DW_CONF,$_USER,$LANG_DW00;
-
-    if ( COM_isAnonUser() && ( $_DW_CONF['loginrequired'] == 1 || $_CONF['loginrequired'] == 1) )  {
-        return '';
-    }
-
-    if ($_DW_CONF['restrict_to_group'] != '' ) {
-        if (SEC_inGroup($_DW_CONF['restrict_to_group'])) {
-            $menuitems[$_DW_CONF['menulabel']] = $_CONF['site_url'] . $_DW_CONF['public_dir'] . 'doku.php';
-            return $menuitems;
-        }
-    } else {
-        $menuitems[$_DW_CONF['menulabel']] = $_CONF['site_url'] . $_DW_CONF['public_dir'] . 'doku.php';
-        return $menuitems;
-    }
-    return '';
+function _dw_admin_header()
+{
+    global $_CONF, $_DW_CONF, $LANG_ADMIN, $LANG_DW00;
+    //USES_lib_admin();
+    require_once($_CONF['path_system'] . 'lib-admin.php');
+    
+    $retval = '';
+    $menu_arr = array(
+            array('url'  => $_CONF['site_admin_url'],
+                  'text' => $LANG_ADMIN['admin_home']),
+    );
+    $retval  .= ADMIN_createMenu($menu_arr, $LANG_DW00['admin'],
+                                $_CONF['site_url'].$_DW_CONF['public_dir'].'dokuwiki.png');
+    $retval .'<br/>';
+    return $retval;
 }
 
 
-function plugin_searchtypes_dokuwiki() {
-    global $_CONF, $_DW_CONF, $_USER, $LANG_DW00;
-
-    if ( COM_isAnonUser() && ( $_DW_CONF['loginrequired'] == 1 || $_CONF['loginrequired'] == 1) )  {
-        return '';
-    }
-    if ($_DW_CONF['restrict_to_group'] != '' ) {
-        if (!SEC_inGroup($_DW_CONF['restrict_to_group'])) {
-            return '';
-        }
-    }
-
-    $tmp['dokuwiki'] = $_DW_CONF['menulabel'];
-    return $tmp;
-}
-
-
-/**
-* this searches for pages matching the user query and returns an array of
-* for the header and table rows back to search.php where it will be formated and
-* printed
-*
-* @query            string          Keywords user is looking for
-* @datestart        date/time       Start date to get results for
-* @dateend          date/time       End date to get results for
-* @topic            string          The topic they were searching in
-* @type             string          Type of items they are searching
-* @author           string          Get all results by this author
-* @keyType        string          search key type: 'all', 'phrase', 'any'
-* @param    int     $page       page number of current search (deprecated)
-* @param    int     $perpage    number of results per page (deprecated)
-*
+/*
+* return the wiki page footer
 */
-
-function plugin_dopluginsearch_dokuwiki($query, $datestart, $dateend, $topic, $type, $author, $keyType, $page, $perpage) {
-
-    global $_CONF, $_DW_CONF;
-
-    if ( $_DW_CONF['disable_search_integration'] == 1) {
-        return '';
-    }
-    if ( COM_isAnonUser() && ( $_DW_CONF['loginrequired'] == 1 || $_CONF['loginrequired'] == 1) )  {
-        return '';
-    }
-    if ($_DW_CONF['restrict_to_group'] != '' ) {
-        if (!SEC_inGroup($_DW_CONF['restrict_to_group'])) {
-            return '';
-        }
-    }
-
-    // Bail if we aren't supppose to do our search
-    if ($type <> 'all' AND $type <> 'dokuwiki') {
-        return '';
-    }
-
-	$pages = DW_searchItems($query, $keyType);
-	$search = new SearchCriteria('dokuwiki', $_DW_CONF['menulabel'],'text');
-	$search->setSQL('--');
-    $search->setFTSQL('--');
-    $search->setResults($pages);
-    $search->setRank(4);
-	
-	return $search;
-}
-
-function DW_searchItems( $query, $keyType )
+function _dw_footer()
 {
-    global $_CONF, $_DW_CONF, $LANG_DW00, $formattedResults;
-	
-	require_once (DOKU_INC.'inc/init.php');
-    require_once (DOKU_INC.'inc/common.php');
-    require_once (DOKU_INC.'inc/events.php');
-    require_once (DOKU_INC.'inc/pageutils.php');
-    require_once (DOKU_INC.'inc/html.php');
-    require_once (DOKU_INC.'inc/auth.php');
-    require_once (DOKU_INC.'inc/actions.php');
-    require_once ($_CONF['path_html'] . $_DW_CONF['public_dir'] . 'inc/search.php');
-    require_once ($_CONF['path_html'] . $_DW_CONF['public_dir'] . 'inc/fulltext.php');
-	
-	if ($keyType == 'any') {
-        $searchQuery = str_replace(' ', " OR ", $query);
-    } else if ($keyType == 'all') {
-        $searchQuery = str_replace(' ', " AND ", $query);
-    } else {
-        $searchQuery = '"'.$query.'"';
-    }
-	
-	$QUERY = $searchQuery;
-    //check if search is restricted to namespace
-    if(preg_match('/([^@]*)@([^@]*)/',$QUERY,$match)) {
-        $id = cleanID($match[1]);
-        if(empty($id)) {
-            return '';
-        }
-    } else {
-        $id = cleanID($QUERY);
-    }
+    global $_DW_CONF;
+    $finalPage = '';
+    $ptitle = tpl_pagetitle(null,1);
+    $wikiPage = ob_get_clean();
+    
+    $display = COM_createHTMLDocument(
+        $wikiPage,
+        array(
+            'pagetitle'  => $ptitle,
+            'rightblock' => $_DW_CONF['displayblocks'],
+        )
+    );
+    
+    COM_output($display);
+    exit;
 
-    //do quick pagesearch
-    $data = array();
-    //do fulltext search
-    $data = ft_pageSearch($QUERY,$poswords);
-
-    if(count($data)){
-        foreach($data as $id => $cnt){
-            $fqn = wikiFN($id);
-            $date = stat($fqn);
-			$formattedResults[] = array(LF_SOURCE_NAME=>$_DW_CONF['menulabel'],
-                                        LF_SOURCE_TITLE=>$LANG_DW00['search_type'],
-                                        'title'=>$id,
-                                        'description'=>ft_snippet($id,$poswords),
-                                        'date'=>$date['mtime'],
-                                        'url'=>$_CONF['site_url'] . $_DW_CONF['public_dir']
-                                    . 'doku.php?id=' . urlencode($id),
-                                        'hits'=>$cnt,
-                                        'uid'=>''
-                                    );
-        }
-    } else {
-        return '';
-    }
-
-    return $formattedResults;
 }
 
-function dokuwiki_perm()
-{
-    global $_DW_CONF, $_CONF, $_USER, $LANG_LOGIN;
-
-    if ( COM_isAnonUser() && ( $_DW_CONF['loginrequired'] == 1 || $_CONF['loginrequired'] == 1) )  {
-        $display = COM_siteHeader();
-        $display .= SEC_loginRequiredForm();
-        $display .= COM_siteFooter();
-        echo $display;
-        exit;
-    }
-}
-
-function plugin_autotags_dokuwiki ($op, $content = '', $autotag = '') {
-    global $_CONF, $_DW_CONF, $LANG_DW00;
-
-    if ($op == 'tagname' ) {
-        return array('wiki');
-    } elseif ($op == 'description') {
-        return array (
-            'wiki' => $LANG_DW00['autotag_desc_wiki']
-            );
-    } else if ($op == 'parse') {
-        $dwId = $autotag['parm1'];
-        $caption = $autotag['parm2'];
-
-        $link = '<a href="' . $_CONF['site_url'] . $_DW_CONF['public_dir'] . 'doku.php?id=' . $dwId . '">';
-        if ( empty($caption) || $caption == '' ) {
-            $caption = $dwId;
-        }
-        $dwTag = $link . $caption . '</a>';
-        $content = str_replace ($autotag['tagstr'], $dwTag, $content);
-        return $content;
-    }
-}
 
 /**
- * Returns the current plugin code version
+ * Upgrade plugin
  *
- * @return string    plugin version
+ * @return  string   plugin version number
  */
-function plugin_chkVersion_dokuwiki()
-{
-    global $_CONF;
-
-    require_once $_CONF['path'] . 'plugins/dokuwiki/autoinstall.php';
-
-    $inst_parms = plugin_autoinstall_dokuwiki('dokuwiki');
-
-    return $inst_parms['info']['pi_version'];
-}
-
-/**
-* Update the plugin
-*
-* @return   int     Number of message to display or true for success
-*
-*/
 function plugin_upgrade_dokuwiki()
 {
     global $_CONF, $_TABLES;
@@ -440,11 +724,25 @@ function plugin_upgrade_dokuwiki()
 
 
     DB_query("UPDATE {$_TABLES['plugins']} SET pi_version = '$code_version', pi_gl_version = '$pi_gl_version' WHERE pi_name = 'dokuwiki'");
-	DB_query("UPDATE {$_TABLES['plugins']} SET pi_homepage='http://geeklog.fr' WHERE pi_name='dokuwiki'",1);
-	COM_errorLog('Dokuwiki plugin was successfully updated to version ' . $code_version . '.');
+	COM_errorLog('DokuWiki plugin was successfully updated to version ' . $code_version . '.');
 
     return true;
 }
+
+
+
+
+
+
+function plugin_getheadercode_dokuwiki()
+{
+    global $_DW_HEADER, $_DW_CONF;
+
+    // Return dokuwiki header info originally created in function _tpl_metaheaders_action and file template.php
+
+    return $_DW_HEADER;
+}
+
 /**
 * Automatic uninstall function for plugins
 *
@@ -463,9 +761,9 @@ function plugin_autouninstall_dokuwiki()
         /* give the name of the tables, without $_TABLES[] */
         'tables' => array(),
         /* give the full name of the group, as in the db */
-        'groups' => array('Dokuwiki Admin'),
+        'groups' => array('DokuWiki Admin'),
         /* give the full name of the feature, as in the db */
-        'features' => array(),
+        'features'   => array('dokuwiki.admin'),
         /* give the full name of the block, including 'phpblock_', etc */
         'php_blocks' => array(),
         /* give all vars with their name */
@@ -474,4 +772,5 @@ function plugin_autouninstall_dokuwiki()
 
     return $out;
 }
+
 ?>

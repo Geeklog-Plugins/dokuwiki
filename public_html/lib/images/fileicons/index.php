@@ -1,7 +1,5 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
- "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en"
- lang="en" dir="ltr">
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
 <head>
     <title>filetype icons</title>
 
@@ -45,6 +43,25 @@ foreach (glob('*.png') as $img) {
 }
 ?>
 </div>
+
+<br style="clear: left" />
+
+<div class="white box">
+    <?php
+    foreach (glob('32x32/*.png') as $img) {
+        echo '<img src="'.$img.'" alt="'.$img.'" title="'.$img.'" /> ';
+    }
+    ?>
+</div>
+
+<div class="black box">
+    <?php
+    foreach (glob('32x32/*.png') as $img) {
+        echo '<img src="'.$img.'" alt="'.$img.'" title="'.$img.'" /> ';
+    }
+    ?>
+</div>
+
 
 </body>
 </html>

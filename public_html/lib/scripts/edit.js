@@ -7,41 +7,53 @@
 
 /**
  * Creates a toolbar button through the DOM
+ * Called for each entry of toolbar definition array (built by inc/toolbar.php and extended via js)
  *
  * Style the buttons through the toolbutton class
  *
+ * @param {string} icon      image filename, relative to folder lib/images/toolbar/
+ * @param {string} label     title of button, show on mouseover
+ * @param {string} key       hint in title of button for access key
+ * @param {string} id        id of button, and '<id>_ico' of icon
+ * @param {string} classname for styling buttons
+ *
  * @author Andreas Gohr <andi@splitbrain.org>
+ * @author Michal Rezler <m.rezler@centrum.cz>
  */
 function createToolButton(icon,label,key,id,classname){
-    var btn = document.createElement('button');
-    var ico = document.createElement('img');
+    var $btn = jQuery(document.createElement('button')),
+        $ico = jQuery(document.createElement('img'));
 
-    // preapare the basic button stuff
-    btn.className = 'toolbutton';
+    // prepare the basic button stuff
+    $btn.addClass('toolbutton');
     if(classname){
-        btn.className += ' '+classname;
+        $btn.addClass(classname);
     }
-    btn.title = label;
+
+    $btn.attr('title', label).attr('aria-controls', 'wiki__text');
     if(key){
-        btn.title += ' ['+key.toUpperCase()+']';
-        btn.accessKey = key;
+        $btn.attr('title', label + ' ['+key.toUpperCase()+']')
+            .attr('accessKey', key);
     }
 
     // set IDs if given
     if(id){
-        btn.id = id;
-        ico.id = id+'_ico';
+        $btn.attr('id', id);
+        $ico.attr('id', id+'_ico');
     }
 
     // create the icon and add it to the button
-    if(icon.substr(0,1) == '/'){
-        ico.src = icon;
-    }else{
-        ico.src = DOKU_BASE+'lib/images/toolbar/'+icon;
+    if(icon.substr(0,1) !== '/'){
+        icon = DOKU_BASE + 'lib/images/toolbar/' + icon;
     }
-    btn.appendChild(ico);
+    $ico.attr('src', icon);
+    $ico.attr('alt', '');
+    $ico.attr('width', 16);
+    $ico.attr('height', 16);
+    $btn.append($ico);
 
-    return btn;
+    // we have to return a DOM object (for compatibility reasons)
+    return $btn[0];
 }
 
 /**
@@ -52,63 +64,60 @@ function createToolButton(icon,label,key,id,classname){
  * class or the picker buttons with the pickerbutton class. Picker
  * windows are appended to the body and created invisible.
  *
- * @param  string id    the ID to assign to the picker
- * @param  array  props the properties for the picker
- * @param  string edid  the ID of the textarea
- * @rteurn DOMobject    the created picker
+ * @param  {string} id    the ID to assign to the picker
+ * @param  {Array}  props the properties for the picker
+ * @param  {string} edid  the ID of the textarea
+ * @return DOMobject    the created picker
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function createPicker(id,props,edid){
-    var icobase = props['icobase'];
-    var list    = props['list'];
-
     // create the wrapping div
-    var picker            = document.createElement('div');
-    picker.className      = 'picker';
+    var $picker = jQuery(document.createElement('div'));
+
+    $picker.addClass('picker a11y');
     if(props['class']){
-        picker.className += ' '+props['class'];
+        $picker.addClass(props['class']);
     }
-    picker.id               = id;
-    picker.style.position   = 'absolute';
-    picker.style.marginLeft = '-10000px'; // no display:none, to keep access keys working
-    picker.style.marginTop  = '-10000px';
 
-    for(var key in list){
-        if (!list.hasOwnProperty(key)) continue;
+    $picker.attr('id', id).css('position', 'absolute');
 
-        if(isNaN(key)){
-            // associative array -> treat as image/value pairs
-            var btn = document.createElement('button');
-            btn.className = 'pickerbutton';
-            var ico = document.createElement('img');
-            if(list[key].substr(0,1) == '/'){
-                ico.src = list[key];
-            }else{
-                ico.src = DOKU_BASE+'lib/images/'+icobase+'/'+list[key];
-            }
-            btn.title     = key;
-            btn.appendChild(ico);
-            dw_addEvent(btn,'click',bind(pickerInsert,key,edid));
-            picker.appendChild(btn);
-        }else if(isString(list[key])){
-            // a list of text -> treat as text picker
-            var btn = document.createElement('button');
-            btn.className = 'pickerbutton';
-            var txt = document.createTextNode(list[key]);
-            btn.title     = list[key];
-            btn.appendChild(txt);
-            dw_addEvent(btn,'click',bind(pickerInsert,list[key],edid));
-            picker.appendChild(btn);
-        }else{
-            // a list of lists -> treat it as subtoolbar
-            initToolbar(picker,edid,list);
-            break; // all buttons handled already
+    function $makebutton(title) {
+        var $btn = jQuery(document.createElement('button'))
+            .addClass('pickerbutton').attr('title', title)
+            .attr('aria-controls', edid)
+            .bind('click', bind(pickerInsert, title, edid))
+            .appendTo($picker);
+        return $btn;
+    }
+
+    jQuery.each(props.list, function (key, item) {
+        if (!props.list.hasOwnProperty(key)) {
+            return;
         }
 
-    }
-    var body = document.getElementsByTagName('body')[0];
-    body.appendChild(picker);
-    return picker;
+        if(isNaN(key)){
+            // associative array -> treat as text => image pairs
+            if (item.substr(0,1) !== '/') {
+                item = DOKU_BASE+'lib/images/'+props.icobase+'/'+item;
+            }
+            jQuery(document.createElement('img'))
+                .attr('src', item)
+                .attr('alt', '')
+                .appendTo($makebutton(key));
+        }else if (typeof item == 'string'){
+            // a list of text -> treat as text picker
+            $makebutton(item).text(item);
+        }else{
+            // a list of lists -> treat it as subtoolbar
+            initToolbar($picker,edid,props.list);
+            return false; // all buttons handled already
+        }
+
+    });
+    jQuery('body').append($picker);
+
+    // we have to return a DOM object (for compatibility reasons)
+    return $picker[0];
 }
 
 /**
@@ -124,137 +133,52 @@ function pickerInsert(text,edid){
 /**
  * Add button action for signature button
  *
- * @param  DOMElement btn   Button element to add the action to
- * @param  array      props Associative array of button properties
- * @param  string     edid  ID of the editor textarea
- * @return boolean    If button should be appended
+ * @param  {jQuery} $btn   Button element to add the action to
+ * @param  {Array}  props  Associative array of button properties
+ * @param  {string} edid   ID of the editor textarea
+ * @return {string} picker id for aria-controls attribute
  * @author Gabriel Birke <birke@d-scribe.de>
  */
-function addBtnActionSignature(btn, props, edid) {
-    if(typeof(SIG) != 'undefined' && SIG != ''){
-        dw_addEvent(btn,'click',bind(insertAtCarret,edid,SIG));
-        return true;
+function addBtnActionSignature($btn, props, edid) {
+    if(typeof SIG != 'undefined' && SIG != ''){
+        $btn.bind('click', function (e) {
+            insertAtCarret(edid,SIG);
+            e.preventDefault();
+        });
+        return edid;
     }
-    return false;
+    return '';
 }
-
-/**
- * Make intended formattings easier to handle
- *
- * Listens to all key inputs and handle indentions
- * of lists and code blocks
- *
- * Currently handles space, backspce and enter presses
- *
- * @author Andreas Gohr <andi@splitbrain.org>
- * @fixme handle tabs
- */
-function keyHandler(e){
-    if(e.keyCode != 13 &&
-       e.keyCode != 8  &&
-       e.keyCode != 32) return;
-    var field     = e.target;
-    var selection = getSelection(field);
-    if(selection.getLength()) return; //there was text selected, keep standard behavior
-    var search    = "\n"+field.value.substr(0,selection.start);
-    var linestart = Math.max(search.lastIndexOf("\n"),
-                             search.lastIndexOf("\r")); //IE workaround
-    search = search.substr(linestart);
-
-
-    if(e.keyCode == 13){ // Enter
-        // keep current indention for lists and code
-        var match = search.match(/(\n  +([\*-] ?)?)/);
-        if(match){
-            var scroll = field.scrollHeight;
-            var match2 = search.match(/^\n  +[\*-]\s*$/);
-            // Cancel list if the last item is empty (i. e. two times enter)
-            if (match2 && field.value.substr(selection.start).match(/^($|\r?\n)/)) {
-                field.value = field.value.substr(0, linestart) + "\n" +
-                              field.value.substr(selection.start);
-                selection.start = linestart + 1;
-                selection.end = linestart + 1;
-                setSelection(selection);
-            } else {
-                insertAtCarret(field.id,match[1]);
-            }
-            field.scrollTop += (field.scrollHeight - scroll);
-            e.preventDefault(); // prevent enter key
-            return false;
-        }
-    }else if(e.keyCode == 8){ // Backspace
-        // unindent lists
-        var match = search.match(/(\n  +)([*-] ?)$/);
-        if(match){
-            var spaces = match[1].length-1;
-
-            if(spaces > 3){ // unindent one level
-                field.value = field.value.substr(0,linestart)+
-                              field.value.substr(linestart+2);
-                selection.start = selection.start - 2;
-                selection.end   = selection.start;
-            }else{ // delete list point
-                field.value = field.value.substr(0,linestart)+
-                              field.value.substr(selection.start);
-                selection.start = linestart;
-                selection.end   = linestart;
-            }
-            setSelection(selection);
-            e.preventDefault(); // prevent backspace
-            return false;
-        }
-    }else if(e.keyCode == 32){ // Space
-        // intend list item
-        var match = search.match(/(\n  +)([*-] )$/);
-        if(match){
-            field.value = field.value.substr(0,linestart)+'  '+
-                          field.value.substr(linestart);
-            selection.start = selection.start + 2;
-            selection.end   = selection.start;
-            setSelection(selection);
-            e.preventDefault(); // prevent space
-            return false;
-        }
-    }
-}
-
-//FIXME consolidate somewhere else
-addInitEvent(function(){
-    var field = $('wiki__text');
-    if(!field) return;
-    // in Firefox, keypress doesn't send the correct keycodes,
-    // in Opera, the default of keydown can't be prevented
-    if (is_opera) {
-        dw_addEvent(field,'keypress',keyHandler);
-    } else {
-        dw_addEvent(field,'keydown',keyHandler);
-    }
-});
 
 /**
  * Determine the current section level while editing
  *
+ * @param {string} textboxId   ID of the text field
+ *
  * @author Andreas Gohr <gohr@cosmocode.de>
  */
 function currentHeadlineLevel(textboxId){
-    var field     = $(textboxId);
-    var selection = getSelection(field);
-    var search    = "\n"+field.value.substr(0,selection.start);
-    var lasthl    = search.lastIndexOf("\n==");
-    if(lasthl == -1 && field.form.prefix){
+    var field = jQuery('#' + textboxId)[0],
+        s = false,
+        opts = [field.value.substr(0,DWgetSelection(field).start)];
+    if (field.form.prefix) {
         // we need to look in prefix context
-        search = field.form.prefix.value;
-        lasthl    = search.lastIndexOf("\n==");
+        opts.push(field.form.prefix.value);
     }
-    search    = search.substr(lasthl+1,6);
 
-    if(search == '======') return 1;
-    if(search.substr(0,5) == '=====') return 2;
-    if(search.substr(0,4) == '====') return 3;
-    if(search.substr(0,3) == '===') return 4;
-    if(search.substr(0,2) == '==') return 5;
-
-    return 0;
+    jQuery.each(opts, function (_, opt) {
+        // Check whether there is a headline in the given string
+        var str = "\n" + opt,
+            lasthl = str.lastIndexOf("\n==");
+        if (lasthl !== -1) {
+            s = str.substr(lasthl+1,6);
+            return false;
+        }
+    });
+    if (s === false) {
+        return 0;
+    }
+    return 7 - s.match(/^={2,6}/)[0].length;
 }
 
 
@@ -264,56 +188,69 @@ function currentHeadlineLevel(textboxId){
 window.textChanged = false;
 
 /**
+ * global var which stores original editor content
+ */
+window.doku_edit_text_content = '';
+/**
  * Delete the draft before leaving the page
  */
 function deleteDraft() {
-    if (is_opera) return;
-    if (window.keepDraft) return;
+    if (is_opera || window.keepDraft) {
+        return;
+    }
+
+    var $dwform = jQuery('#dw__editform');
+
+    if($dwform.length === 0) {
+        return;
+    }
 
     // remove a possibly saved draft using ajax
-    var dwform = $('dw__editform');
-    if(dwform){
-        var params = 'call=draftdel';
-        params += '&id='+encodeURIComponent(dwform.elements.id.value);
-
-        var sackobj = new sack(DOKU_BASE + 'lib/exe/ajax.php');
-        // this needs to be synchronous and GET to not be aborted upon page unload
-        sackobj.asynchronous = false;
-        sackobj.method = 'GET';
-        sackobj.AjaxFailedAlert = '';
-        sackobj.encodeURIString = false;
-        sackobj.runAJAX(params);
-    }
+    jQuery.post(DOKU_BASE + 'lib/exe/ajax.php',
+        {
+            call: 'draftdel',
+            id: $dwform.find('input[name=id]').val()
+        }
+    );
 }
 
 /**
  * Activate "not saved" dialog, add draft deletion to page unload,
  * add handlers to monitor changes
+ * Note: textChanged could be set by e.g. html_edit() as well
  *
  * Sets focus to the editbox as well
  */
-addInitEvent(function (){
-    var editform = $('dw__editform');
-    if (!editform) return;
-
-    var edit_text   = $('wiki__text');
-    if(edit_text) {
-        if(edit_text.readOnly) return;
-
-        // set focus and place cursor at the start
-        var sel = getSelection(edit_text);
-        sel.start = 0;
-        sel.end   = 0;
-        setSelection(sel);
-        edit_text.focus();
+jQuery(function () {
+    var $editform = jQuery('#dw__editform');
+    if ($editform.length == 0) {
+        return;
     }
 
-    var checkfunc = function(){
-        window.textChanged = true; //global var
-        summaryCheck();
+    var $edit_text = jQuery('#wiki__text');
+    if ($edit_text.length > 0) {
+        if($edit_text.attr('readOnly')) {
+            return;
+        }
+
+        // set focus and place cursor at the start
+        var sel = DWgetSelection($edit_text[0]);
+        sel.start = 0;
+        sel.end   = 0;
+        DWsetSelection(sel);
+        $edit_text.focus();
+
+        doku_edit_text_content = $edit_text.val();
+    }
+
+    var changeHandler = function() {
+        doku_hasTextBeenModified();
+
+        doku_summaryCheck();
     };
-    dw_addEvent(editform, 'change', checkfunc);
-    dw_addEvent(editform, 'keydown', checkfunc);
+
+    $editform.change(changeHandler);
+    $editform.keydown(changeHandler);
 
     window.onbeforeunload = function(){
         if(window.textChanged) {
@@ -323,33 +260,49 @@ addInitEvent(function (){
     window.onunload = deleteDraft;
 
     // reset change memory var on submit
-    dw_addEvent($('edbtn__save'), 'click', function(){
-        window.onbeforeunload = '';
-        window.textChanged = false;
-    });
-    dw_addEvent($('edbtn__preview'), 'click', function(){
-        window.onbeforeunload = '';
-        window.textChanged = false;
-        window.keepDraft = true; // needed to keep draft on page unload
-    });
+    jQuery('#edbtn__save').click(
+        function() {
+            window.onbeforeunload = '';
+            textChanged = false;
+        }
+    );
+    jQuery('#edbtn__preview').click(
+        function() {
+            window.onbeforeunload = '';
+            textChanged = false;
+            window.keepDraft = true; // needed to keep draft on page unload
+        }
+    );
 
-    var summary = $('edit__summary');
-    dw_addEvent(summary, 'change', summaryCheck);
-    dw_addEvent(summary, 'keyup', summaryCheck);
-    if (window.textChanged) summaryCheck();
+    var $summary = jQuery('#edit__summary');
+    $summary.change(doku_summaryCheck);
+    $summary.keyup(doku_summaryCheck);
+
+    if (textChanged) doku_summaryCheck();
 });
+
+/**
+ * Updates textChanged variable if content of the editor has been modified
+ */
+function doku_hasTextBeenModified() {
+    if (!textChanged) {
+        var $edit_text = jQuery('#wiki__text');
+
+        if ($edit_text.length > 0) {
+            textChanged = doku_edit_text_content != $edit_text.val();
+        } else {
+            textChanged = true;
+        }
+    }
+}
 
 /**
  * Checks if a summary was entered - if not the style is changed
  *
  * @author Andreas Gohr <andi@splitbrain.org>
  */
-function summaryCheck(){
-    var sum = document.getElementById('edit__summary');
-    if(sum.value === ''){
-        sum.className='missing';
-    }else{
-        sum.className='edit';
-    }
+function doku_summaryCheck(){
+    var $sum = jQuery('#edit__summary'),
+        missing = $sum.val() === '';
+    $sum.toggleClass('missing', missing).toggleClass('edit', !missing);
 }
-

@@ -2,7 +2,7 @@
 
 /* Reminder: always indent with 4 spaces (no tabs). */
 // +---------------------------------------------------------------------------+
-// | Dokuwiki Plugin 1.8.0                                                     |
+// | Dokuwiki Plugin                                                           |
 // +---------------------------------------------------------------------------+
 // | autoinstall.php                                                           |
 // |                                                                           |
@@ -45,15 +45,15 @@
 function plugin_autoinstall_dokuwiki($pi_name)
 {
     $pi_name         = 'dokuwiki';
-    $pi_display_name = 'Dokuwiki';
+    $pi_display_name = 'DokuWiki';
     $pi_admin        = $pi_display_name . ' Admin';
 
     $info = array(
         'pi_name'         => $pi_name,
         'pi_display_name' => $pi_display_name,
-        'pi_version'      => '1.8.0',
-        'pi_gl_version'   => '1.8.0',
-        'pi_homepage'     => 'http://geeklog.fr'
+        'pi_version'      => '1.9.0',
+        'pi_gl_version'   => '2.1.1',
+        'pi_homepage'     => 'http://geeklog.net'
     );
 
     $groups = array(
@@ -100,7 +100,7 @@ function plugin_compatible_with_this_version_dokuwiki($pi_name)
 {
     global $_CONF, $_DB_dbms;
 
-    if (!function_exists('COM_showMessageText')) {
+    if (!function_exists('COM_createHTMLDocument')) {
         return false;
     }
 
@@ -120,4 +120,5 @@ function plugin_load_configuration_dokuwiki($pi_name)
 
     return plugin_initconfig_dokuwiki();
 }
+
 ?>

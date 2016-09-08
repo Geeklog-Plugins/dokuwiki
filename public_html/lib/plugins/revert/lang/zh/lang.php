@@ -1,8 +1,8 @@
 <?php
+
 /**
- * Chinese(Simplified) language file
- *
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
+ *
  * @author ZDYX <zhangduyixiong@gmail.com>
  * @author http://www.chinese-tools.com/tools/converter-tradsimp.html
  * @author George Sheraton guxd@163.com
@@ -13,6 +13,8 @@
  * @author caii <zhoucaiqi@gmail.com>
  * @author Hiphen Lee <jacob.b.leung@gmail.com>
  * @author caii, patent agent in China <zhoucaiqi@gmail.com>
+ * @author lainme993@gmail.com
+ * @author Shuo-Ting Jian <shoting@gmail.com>
  */
 $lang['menu']                  = '还原管理器';
 $lang['filter']                = '搜索包含垃圾信息的页面';

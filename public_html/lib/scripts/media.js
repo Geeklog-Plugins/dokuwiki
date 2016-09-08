@@ -2,94 +2,783 @@
  * JavaScript functionality for the media management popup
  *
  * @author Andreas Gohr <andi@splitbrain.org>
+ * @author Pierre Spring <pierre.spring@caillou.ch>
  */
-var media_manager = {
+
+var dw_mediamanager = {
     keepopen: false,
     hide: false,
-    align: false,
     popup: false,
-    id: false,
     display: false,
+    ext: false,
+    $popup: null,
+
+    // Image insertion opts
+    align: false,
     link: false,
     size: false,
-    ext: false,
+    forbidden_opts: {},
 
-    /**
-     * Attach event handlers to all "folders" below the given element
-     *
-     * @author Andreas Gohr <andi@splitbrain.org>
-     */
-    treeattach: function(obj){
-        if(!obj) return;
+    // File list options
+    view_opts: {list: false, sort: false},
 
-        var items = obj.getElementsByTagName('li');
-        for(var i=0; i<items.length; i++){
-            var elem = items[i];
+    layout_width: 0,
 
-            // attach action to make the +/- clickable
-            var clicky = elem.getElementsByTagName('img')[0];
-            clicky.style.cursor = 'pointer';
-            dw_addEvent(clicky,'click',function(event){ return media_manager.toggle(event,this); });
+    // The minimum height of the full-screen mediamanager in px
+    minHeights: {thumbs: 200, rows: 100},
 
-            // attach action load folder list via AJAX
-            var link = elem.getElementsByTagName('a')[0];
-            link.style.cursor = 'pointer';
-            dw_addEvent(link,'click',function(event){ return media_manager.list(event,this); });
+    init: function () {
+        var $content, $tree;
+        $content = jQuery('#media__content');
+        $tree = jQuery('#media__tree');
+        if (!$tree.length) return;
+
+        dw_mediamanager.prepare_content($content);
+
+        dw_mediamanager.attachoptions();
+        dw_mediamanager.initpopup();
+
+        // add the action to autofill the "upload as" field
+        $content
+            .delegate('#upload__file', 'change', dw_mediamanager.suggest)
+            // Attach the image selector action to all links
+            .delegate('a.select', 'click', dw_mediamanager.select)
+            // Attach deletion confirmation dialog to the delete buttons
+            .delegate('#media__content a.btn_media_delete', 'click',
+            dw_mediamanager.confirmattach)
+            .delegate('#mediamanager__done_form', 'submit', dw_mediamanager.list);
+
+        $tree.dw_tree({
+            toggle_selector: 'img',
+            load_data: function (show_sublist, $clicky) {
+                // get the enclosed link (is always the first one)
+                var $link = $clicky.parent().find('div.li a.idx_dir');
+
+                jQuery.post(
+                    DOKU_BASE + 'lib/exe/ajax.php',
+                    $link[0].search.substr(1) + '&call=medians',
+                    show_sublist,
+                    'html'
+                );
+            },
+
+            toggle_display: function ($clicky, opening) {
+                $clicky.attr('src', DOKU_BASE + 'lib/images/' + (opening ? 'minus' : 'plus') + '.gif');
+            }
+        });
+        $tree.delegate('a', 'click', dw_mediamanager.list);
+
+        // Init view property
+        dw_mediamanager.set_fileview_list();
+
+        dw_mediamanager.init_options();
+
+        dw_mediamanager.image_diff();
+        dw_mediamanager.init_ajax_uploader();
+
+        // changing opened tab in the file list panel
+        var $page = jQuery('#mediamanager__page');
+        $page.find('div.filelist')
+            .delegate('ul.tabs a', 'click', dw_mediamanager.list)
+            // loading file details
+            .delegate('div.panelContent a', 'click', dw_mediamanager.details)
+            // search form
+            .delegate('#dw__mediasearch', 'submit', dw_mediamanager.list)
+            // "upload as" field autofill
+            .delegate('#upload__file', 'change', dw_mediamanager.suggest)
+            // uploaded images
+            .delegate('.qq-upload-file a', 'click', dw_mediamanager.details);
+
+        // changing opened tab in the file details panel
+        $page.find('div.file')
+            .delegate('ul.tabs a', 'click', dw_mediamanager.details)
+            // "update new version" button
+            .delegate('#mediamanager__btn_update', 'submit', dw_mediamanager.list)
+            // revisions form
+            .delegate('#page__revisions', 'submit', dw_mediamanager.details)
+            .delegate('#page__revisions a', 'click', dw_mediamanager.details)
+            // meta edit form
+            .delegate('#mediamanager__save_meta', 'submit', dw_mediamanager.details)
+            // delete button
+            .delegate('#mediamanager__btn_delete', 'submit', dw_mediamanager.details)
+            // "restore this version" button
+            .delegate('#mediamanager__btn_restore', 'submit', dw_mediamanager.details)
+            // less/more recent buttons in media revisions form
+            .delegate('.btn_newer, .btn_older', 'submit', dw_mediamanager.details);
+
+        dw_mediamanager.update_resizable();
+        dw_mediamanager.layout_width = $page.width();
+        jQuery(window).resize(dw_mediamanager.window_resize);
+    },
+
+    init_options: function () {
+        var $options = jQuery('div.filelist div.panelHeader form.options'),
+            $listType, $sortBy, $both;
+        if ($options.length === 0) {
+            return;
         }
+
+        $listType = $options.find('li.listType');
+        $sortBy = $options.find('li.sortBy');
+        $both = $listType.add($sortBy);
+
+        // Remove the submit button
+        $options.find('button[type=submit]').parent().hide();
+
+        // Prepare HTML for jQuery UI buttonset
+        $both.find('label').each(function () {
+            var $this = jQuery(this);
+            $this.children('input').appendTo($this.parent());
+        });
+
+        // Init buttonset
+        $both.buttonset();
+
+        // Change handlers
+        $listType.children('input').change(function () {
+            dw_mediamanager.set_fileview_list();
+        });
+        $sortBy.children('input').change(function (event) {
+            dw_mediamanager.set_fileview_sort();
+            dw_mediamanager.list.call(jQuery('#dw__mediasearch')[0] || this, event);
+        });
     },
 
     /**
-     * Attach the image selector action to all links below the given element
-     * also add the action to autofill the "upload as" field
+     * build the popup window
      *
-     * @author Andreas Gohr <andi@splitbrain.org>
+     * @author Dominik Eckelmann <eckelmann@cosmocode.de>
      */
-    selectorattach: function(obj){
-        if(!obj) return;
+    initpopup: function () {
+        var opts, $insp, $insbtn;
 
-        var items = getElementsByClass('select',obj,'a');
-        for(var i=0; i<items.length; i++){
-            var elem = items[i];
-            elem.style.cursor = 'pointer';
-            dw_addEvent(elem,'click',function(event){ return media_manager.select(event,this); });
-        }
-
-        // hide syntax example
-        items = getElementsByClass('example',obj,'div');
-        for(var i=0; i<items.length; i++){
-            elem = items[i];
-            elem.style.display = 'none';
-        }
-
-        var file = $('upload__file');
-        if(!file) return;
-        dw_addEvent(file,'change',media_manager.suggest);
-    },
-
-    /**
-     * Attach deletion confirmation dialog to the delete buttons.
-     *
-     * Michael Klier <chi@chimeric.de>
-     */
-    confirmattach: function(obj){
-        if(!obj) return;
-
-        items = getElementsByClass('btn_media_delete',obj,'a');
-        for(var i=0; i<items.length; i++){
-            var elem = items[i];
-            dw_addEvent(elem,'click',function(e){
-                if(e.target.tagName == 'IMG'){
-                    var name = e.target.parentNode.title;
-                }else{
-                    var name = e.target.title;
-                }
-                if(!confirm(LANG['del_confirm'] + "\n" + name)) {
-                    e.preventDefault();
-                    return false;
-                } else {
-                    return true;
-                }
+        dw_mediamanager.$popup = jQuery(document.createElement('div'))
+            .attr('id', 'media__popup_content')
+            .dialog({
+                autoOpen: false, width: 280, modal: true,
+                draggable: true, title: LANG.mediatitle,
+                resizable: false
             });
+
+        opts = [
+            {
+                id: 'link', label: LANG.mediatarget,
+                btns: ['lnk', 'direct', 'nolnk', 'displaylnk']
+            },
+            {
+                id: 'align', label: LANG.mediaalign,
+                btns: ['noalign', 'left', 'center', 'right']
+            },
+            {
+                id: 'size', label: LANG.mediasize,
+                btns: ['small', 'medium', 'large', 'original']
+            }
+        ];
+
+        jQuery.each(opts, function (_, opt) {
+            var $p, $l;
+            $p = jQuery(document.createElement('p'))
+                .attr('id', 'media__' + opt.id);
+
+            if (dw_mediamanager.display === "2") {
+                $p.hide();
+            }
+
+            $l = jQuery(document.createElement('label'))
+                .text(opt.label);
+            $p.append($l);
+
+            jQuery.each(opt.btns, function (i, text) {
+                var $btn, $img;
+                $btn = jQuery(document.createElement('button'))
+                    .addClass('button')
+                    .attr('id', "media__" + opt.id + "btn" + (i + 1))
+                    .attr('title', LANG['media' + text])
+                    .click(bind(dw_mediamanager.setOpt, opt.id));
+
+                $img = jQuery(document.createElement('img'))
+                    .attr('src', DOKU_BASE + 'lib/images/media_' + opt.id + '_' + text + '.png');
+
+                $btn.append($img);
+                $p.append($btn);
+            });
+
+            dw_mediamanager.$popup.append($p);
+        });
+
+        // insert button
+        $insp = jQuery(document.createElement('p'));
+        dw_mediamanager.$popup.append($insp);
+
+        $insbtn = jQuery(document.createElement('input'))
+            .attr('id', 'media__sendbtn')
+            .attr('type', 'button')
+            .addClass('button')
+            .val(LANG.mediainsert);
+        $insp.append($insbtn);
+    },
+
+    /**
+     * Insert the clicked image into the opener's textarea
+     *
+     * @author Andreas Gohr <andi@splitbrain.org>
+     * @author Dominik Eckelmann <eckelmann@cosmocode.de>
+     * @author Pierre Spring <pierre.spring@caillou.ch>
+     */
+    insert: function (id) {
+        var opts, cb, edid, s;
+
+        // set syntax options
+        dw_mediamanager.$popup.dialog('close');
+
+        opts = '';
+
+        if ({img: 1, swf: 1}[dw_mediamanager.ext] === 1) {
+
+            if (dw_mediamanager.link === '4') {
+                opts = '?linkonly';
+            } else {
+
+                if (dw_mediamanager.link === "3" && dw_mediamanager.ext === 'img') {
+                    opts = '?nolink';
+                } else if (dw_mediamanager.link === "2" && dw_mediamanager.ext === 'img') {
+                    opts = '?direct';
+                }
+
+                s = parseInt(dw_mediamanager.size, 10);
+
+                if (s && s >= 1 && s < 4) {
+                    opts += (opts.length) ? '&' : '?';
+                    opts += dw_mediamanager.size + '00';
+                    if (dw_mediamanager.ext === 'swf') {
+                        switch (s) {
+                            case 1:
+                                opts += 'x62';
+                                break;
+                            case 2:
+                                opts += 'x123';
+                                break;
+                            case 3:
+                                opts += 'x185';
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+        edid = String.prototype.match.call(document.location, /&edid=([^&]+)/);
+        edid = edid ? edid[1] : 'wiki__text';
+        cb = String.prototype.match.call(document.location, /&onselect=([^&]+)/);
+        cb = cb ? cb[1].replace(/[^\w]+/, '') : 'dw_mediamanager_item_select';
+
+        opener[cb](edid, id, opts, dw_mediamanager.align);
+        if (!dw_mediamanager.keepopen) {
+            window.close();
+        }
+        opener.focus();
+        return false;
+    },
+
+
+    /**
+     * Prefills the wikiname.
+     *
+     * @author Andreas Gohr <andi@splitbrain.org>
+     */
+    suggest: function () {
+        var $file, $name, text;
+
+        $file = jQuery(this);
+        $name = jQuery('#upload__name');
+
+        if ($name.val() != '') return;
+
+        if (!$file.length || !$name.length) {
+            return;
+        }
+
+        text = $file.val();
+        text = text.substr(text.lastIndexOf('/') + 1);
+        text = text.substr(text.lastIndexOf('\\') + 1);
+        $name.val(text);
+    },
+
+    /**
+     * list the content of a namespace using AJAX
+     *
+     * @author Andreas Gohr <andi@splitbrain.org>
+     * @author Pierre Spring <pierre.spring@caillou.ch>
+     */
+    list: function (event) {
+        var $link, $content, params;
+
+        if (event) {
+            event.preventDefault();
+        }
+
+        jQuery('div.success, div.info, div.error, div.notify').remove();
+
+        $link = jQuery(this);
+
+        //popup
+        $content = jQuery('#media__content');
+
+        if ($content.length === 0) {
+            //fullscreen media manager
+            $content = jQuery('div.filelist');
+
+            if ($link.hasClass('idx_dir')) {
+                //changing namespace
+                jQuery('div.file').empty();
+                jQuery('div.namespaces .selected').removeClass('selected');
+                $link.addClass('selected');
+            }
+        }
+
+        params = 'call=medialist&';
+
+        if ($link[0].search) {
+            params += $link[0].search.substr(1);
+        } else if ($link.is('form')) {
+            params += dw_mediamanager.form_params($link);
+        } else if ($link.closest('form').length > 0) {
+            params += dw_mediamanager.form_params($link.closest('form'));
+        }
+
+        // fetch the subtree
+        dw_mediamanager.update_content($content, params);
+    },
+
+    /**
+     * Returns form parameters
+     *
+     * @author Kate Arzamastseva <pshns@ukr.net>
+     */
+    form_params: function ($form) {
+        if (!$form.length) return;
+
+        var action = '';
+        var i = $form[0].action.indexOf('?');
+        if (i >= 0) {
+            action = $form[0].action.substr(i + 1);
+        }
+        return action + '&' + $form.serialize();
+    },
+
+    set_fileview_list: function (new_type) {
+        dw_mediamanager.set_fileview_opt(['list', 'listType', function (new_type) {
+            jQuery('div.filelist div.panelContent ul')
+                .toggleClass('rows', new_type === 'rows')
+                .toggleClass('thumbs', new_type === 'thumbs');
+        }], new_type);
+
+        // FIXME: Move to onchange handler (opt[2])?
+        dw_mediamanager.resize();
+    },
+
+    set_fileview_sort: function (new_sort) {
+        dw_mediamanager.set_fileview_opt(['sort', 'sortBy', function (new_sort) {
+            // FIXME
+        }], new_sort);
+    },
+
+    set_fileview_opt: function (opt, new_val) {
+        if (typeof new_val === 'undefined') {
+            new_val = jQuery('form.options li.' + opt[1] + ' input')
+                .filter(':checked').val();
+            // if new_val is still undefined (because form.options is not in active tab), set to most spacious option
+            if (typeof new_val === 'undefined') {
+                new_val = 'thumbs';
+            }
+        }
+
+        if (new_val !== dw_mediamanager.view_opts[opt[0]]) {
+            opt[2](new_val);
+
+            DokuCookie.setValue(opt[0], new_val);
+
+            dw_mediamanager.view_opts[opt[0]] = new_val;
+        }
+    },
+
+    /**
+     * Lists the content of the right column (image details) using AJAX
+     *
+     * @author Kate Arzamastseva <pshns@ukr.net>
+     */
+    details: function (event) {
+        var $link, $content, params, update_list;
+        $link = jQuery(this);
+        event.preventDefault();
+
+        jQuery('div.success, div.info, div.error, div.notify').remove();
+
+        if ($link[0].id == 'mediamanager__btn_delete' && !confirm(LANG.del_confirm)) {
+            return false;
+        }
+        if ($link[0].id == 'mediamanager__btn_restore' && !confirm(LANG.restore_confirm)) {
+            return false;
+        }
+
+        $content = jQuery('div.file');
+        params = 'call=mediadetails&';
+
+        if ($link[0].search) {
+            params += $link[0].search.substr(1);
+        } else if ($link.is('form')) {
+            params += dw_mediamanager.form_params($link);
+        } else if ($link.closest('form').length > 0) {
+            params += dw_mediamanager.form_params($link.closest('form'));
+        }
+
+        update_list = ($link[0].id == 'mediamanager__btn_delete' ||
+        $link[0].id == 'mediamanager__btn_restore');
+
+        dw_mediamanager.update_content($content, params, update_list);
+    },
+
+    update_content: function ($content, params, update_list) {
+        var $container;
+
+        jQuery.post(
+            DOKU_BASE + 'lib/exe/ajax.php',
+            params,
+            function (data) {
+                dw_mediamanager.$resizables().resizable('destroy');
+
+                if (update_list) {
+                    dw_mediamanager.list.call(jQuery('#mediamanager__page').find('form.options button[type="submit"]')[0]);
+                }
+
+                $content.html(data);
+
+                dw_mediamanager.prepare_content($content);
+                dw_mediamanager.updatehide();
+
+                dw_mediamanager.update_resizable();
+                dw_behaviour.revisionBoxHandler();
+
+                // Make sure that the list view style stays the same
+                dw_mediamanager.set_fileview_list(dw_mediamanager.view_opts.list);
+
+                dw_mediamanager.image_diff();
+                dw_mediamanager.init_ajax_uploader();
+                dw_mediamanager.init_options();
+
+            },
+            'html'
+        );
+        $container = $content.find('div.panelContent');
+        if ($container.length === 0) {
+            $container = $content;
+        }
+        $container.html('<img src="' + DOKU_BASE + 'lib/images/loading.gif" alt="..." class="load" />');
+    },
+
+    window_resize: function () {
+        dw_mediamanager.resize();
+
+        dw_mediamanager.opacity_slider();
+        dw_mediamanager.portions_slider();
+    },
+
+    $resizables: function () {
+        return jQuery('#mediamanager__page').find('div.namespaces, div.filelist');
+    },
+
+    /**
+     * Updates mediamanager layout
+     *
+     * @author Kate Arzamastseva <pshns@ukr.net>
+     */
+    update_resizable: function () {
+        var $resizables = dw_mediamanager.$resizables();
+
+        $resizables.resizable({
+            handles: (jQuery('html[dir=rtl]').length ? 'w' : 'e'),
+            resize: function (event, ui) {
+                var $page = jQuery('#mediamanager__page');
+                var widthFull = $page.width();
+                var widthResizables = 0;
+                $resizables.each(function () {
+                    widthResizables += jQuery(this).width();
+                });
+                var $filePanel = $page.find('div.panel.file');
+
+                // set max width of resizable column
+                var widthOtherResizable = widthResizables - jQuery(this).width();
+                var minWidthNonResizable = parseFloat($filePanel.css("min-width"));
+                var maxWidth = widthFull - (widthOtherResizable + minWidthNonResizable) - 1;
+                $resizables.resizable("option", "maxWidth", maxWidth);
+
+                // width of file panel in % = 100% - width of resizables in %
+                // this calculates with 99.9 and not 100 to overcome rounding errors
+                var relWidthNonResizable = 99.9 - (100 * widthResizables / widthFull);
+                // set width of file panel
+                $filePanel.width(relWidthNonResizable + '%');
+
+                // FIXME: please fix without browser sniffing
+                if (!jQuery.browser.webkit) {
+                    $resizables.each(function () {
+                        var w = jQuery(this).width();
+                        w = (99.99 * w / widthFull);
+                        w += "%";
+                        jQuery(this).width(w);
+                    });
+                }
+
+                dw_mediamanager.resize();
+
+                dw_mediamanager.opacity_slider();
+                dw_mediamanager.portions_slider();
+            }
+        });
+
+        dw_mediamanager.resize();
+    },
+
+    resize: function () {
+        var $contents = jQuery('#mediamanager__page').find('div.panelContent'),
+            height = jQuery(window).height() - jQuery(document.body).height() +
+                Math.max.apply(null, jQuery.map($contents, function (v) {
+                    return jQuery(v).height();
+                }));
+
+        // If the screen is too small, don’t try to resize
+        if (height < dw_mediamanager.minHeights[dw_mediamanager.view_opts.list]) {
+            $contents.add(dw_mediamanager.$resizables()).height('auto');
+        } else {
+            $contents.height(height);
+            dw_mediamanager.$resizables().each(function () {
+                var $this = jQuery(this);
+                $this.height(height + $this.find('div.panelContent').offset().top - $this.offset().top);
+            });
+        }
+    },
+
+    /**
+     * Prints 'select' for image difference representation type
+     *
+     * @author Kate Arzamastseva <pshns@ukr.net>
+     */
+    image_diff: function () {
+        if (jQuery('#mediamanager__difftype').length) return;
+
+        var $form = jQuery('#mediamanager__form_diffview');
+        if (!$form.length) return;
+
+        var $label = jQuery(document.createElement('label'));
+        $label.append('<span>' + LANG.media_diff + '</span> ');
+        var $select = jQuery(document.createElement('select'))
+            .attr('id', 'mediamanager__difftype')
+            .attr('name', 'difftype')
+            .change(dw_mediamanager.change_diff_type);
+        $select.append(new Option(LANG.media_diff_both, "both"));
+        $select.append(new Option(LANG.media_diff_opacity, "opacity"));
+        $select.append(new Option(LANG.media_diff_portions, "portions"));
+        $label.append($select);
+        $form.append($label);
+
+        // for IE
+        var select = document.getElementById('mediamanager__difftype');
+        select.options[0].text = LANG.media_diff_both;
+        select.options[1].text = LANG.media_diff_opacity;
+        select.options[2].text = LANG.media_diff_portions;
+    },
+
+    /**
+     * Handles selection of image difference representation type
+     *
+     * @author Kate Arzamastseva <pshns@ukr.net>
+     */
+    change_diff_type: function () {
+        var $select = jQuery('#mediamanager__difftype');
+        var $content = jQuery('#mediamanager__diff');
+
+        var params = dw_mediamanager.form_params($select.closest('form')) + '&call=mediadiff';
+        jQuery.post(
+            DOKU_BASE + 'lib/exe/ajax.php',
+            params,
+            function (data) {
+                $content.html(data);
+                dw_mediamanager.portions_slider();
+                dw_mediamanager.opacity_slider();
+            },
+            'html'
+        );
+    },
+
+    /**
+     * Sets options for opacity diff slider
+     *
+     * @author Kate Arzamastseva <pshns@ukr.net>
+     */
+    opacity_slider: function () {
+        var $diff = jQuery("#mediamanager__diff");
+        var $slider = $diff.find("div.slider");
+        if (!$slider.length) return;
+
+        var $image = $diff.find('div.imageDiff.opacity div.image1 img');
+        if (!$image.length) return;
+        $slider.width($image.width() - 20);
+
+        $slider.slider();
+        $slider.slider("option", "min", 0);
+        $slider.slider("option", "max", 0.999);
+        $slider.slider("option", "step", 0.001);
+        $slider.slider("option", "value", 0.5);
+        $slider.bind("slide", function (event, ui) {
+            jQuery('#mediamanager__diff').find('div.imageDiff.opacity div.image2 img').css({opacity: $slider.slider("option", "value")});
+        });
+    },
+
+    /**
+     * Sets options for red line diff slider
+     *
+     * @author Kate Arzamastseva <pshns@ukr.net>
+     */
+    portions_slider: function () {
+        var $diff = jQuery("#mediamanager__diff");
+        if (!$diff.length) return;
+
+        var $image1 = $diff.find('div.imageDiff.portions div.image1 img');
+        var $image2 = $diff.find('div.imageDiff.portions div.image2 img');
+        if (!$image1.length || !$image2.length) return;
+
+        $diff.width('100%');
+        $image2.parent().width('97%');
+        $image1.width('100%');
+        $image2.width('100%');
+
+        if ($image1.width() < $diff.width()) {
+            $diff.width($image1.width());
+        }
+
+        $image2.parent().width('50%');
+        $image2.width($image1.width());
+        $image1.width($image1.width());
+
+        var $slider = $diff.find("div.slider");
+        if (!$slider.length) return;
+        $slider.width($image1.width() - 20);
+
+        $slider.slider();
+        $slider.slider("option", "min", 0);
+        $slider.slider("option", "max", 97);
+        $slider.slider("option", "step", 1);
+        $slider.slider("option", "value", 50);
+        $slider.bind("slide", function (event, ui) {
+            jQuery('#mediamanager__diff').find('div.imageDiff.portions div.image2').css({width: $slider.slider("option", "value") + '%'});
+        });
+    },
+
+    /**
+     * Parse a URI query string to an associative array
+     *
+     * @author Kate Arzamastseva <pshns@ukr.net>
+     */
+    params_toarray: function (str) {
+        var vars = [], hash;
+        var hashes = str.split('&');
+        for (var i = 0; i < hashes.length; i++) {
+            hash = hashes[i].split('=');
+            vars[decodeURIComponent(hash[0])] = decodeURIComponent(hash[1]);
+        }
+        return vars;
+    },
+
+    init_ajax_uploader: function () {
+        if (!jQuery('#mediamanager__uploader').length) return;
+        if (jQuery('.qq-upload-list').length) return;
+
+        var params = dw_mediamanager.form_params(jQuery('#dw__upload')) + '&call=mediaupload';
+        params = dw_mediamanager.params_toarray(params);
+
+        var uploader = new qq.FileUploaderExtended({
+            element: document.getElementById('mediamanager__uploader'),
+            action: DOKU_BASE + 'lib/exe/ajax.php',
+            params: params
+        });
+    },
+
+    prepare_content: function ($content) {
+        // hide syntax example
+        $content.find('div.example:visible').hide();
+    },
+
+    /**
+     * shows the popup for a image link
+     */
+    select: function (event) {
+        var $link, id, dot, ext;
+
+        event.preventDefault();
+
+        $link = jQuery(this);
+        id = $link.attr('id').substr(2);
+
+        if (!opener) {
+            // if we don't run in popup display example
+            // the id's are a bit wierd and jQuery('#ex_wiki_dokuwiki-128.png')
+            // will not be found by Sizzle (the CSS Selector Engine
+            // used by jQuery), hence the document.getElementById() call
+            jQuery(document.getElementById('ex_' + id.replace(/:/g, '_').replace(/^_/, ''))).dw_toggle();
+            return;
+        }
+
+        dw_mediamanager.ext = false;
+        dot = id.lastIndexOf(".");
+
+        if (-1 === dot) {
+            dw_mediamanager.insert(id);
+            return;
+        }
+
+        ext = id.substr(dot);
+
+        if ({'.jpg': 1, '.jpeg': 1, '.png': 1, '.gif': 1, '.swf': 1}[ext] !== 1) {
+            dw_mediamanager.insert(id);
+            return;
+        }
+
+        // remove old callback from the insert button and set the new one.
+        var $sendbtn = jQuery('#media__sendbtn');
+        $sendbtn.unbind().click(bind(dw_mediamanager.insert, id));
+
+        dw_mediamanager.unforbid('ext');
+        if (ext === '.swf') {
+            dw_mediamanager.ext = 'swf';
+            dw_mediamanager.forbid('ext', {
+                link: ['1', '2'],
+                size: ['4']
+            });
+        } else {
+            dw_mediamanager.ext = 'img';
+        }
+
+        // Set to defaults
+        dw_mediamanager.setOpt('link');
+        dw_mediamanager.setOpt('align');
+        dw_mediamanager.setOpt('size');
+
+        // toggle buttons for detail and linked image, original size
+        jQuery('#media__linkbtn1, #media__linkbtn2, #media__sizebtn4')
+            .toggle(dw_mediamanager.ext === 'img');
+
+        dw_mediamanager.$popup.dialog('open');
+
+        $sendbtn.focus();
+    },
+
+    /**
+     * Deletion confirmation dialog to the delete buttons.
+     *
+     * @author Michael Klier <chi@chimeric.de>
+     * @author Pierre Spring <pierre.spring@caillou.ch>
+     */
+    confirmattach: function (e) {
+        if (!confirm(LANG.del_confirm + "\n" + jQuery(this).attr('title'))) {
+            e.preventDefault();
         }
     },
 
@@ -97,85 +786,62 @@ var media_manager = {
      * Creates checkboxes for additional options
      *
      * @author Andreas Gohr <andi@splitbrain.org>
+     * @author Pierre Spring <pierre.spring@caillou.ch>
      */
-    attachoptions: function(obj){
-        if(!obj) return;
+    attachoptions: function () {
+        var $obj, opts;
 
+        $obj = jQuery('#media__opts');
+        if ($obj.length === 0) {
+            return;
+        }
+
+        opts = [];
         // keep open
-        if(opener){
-            var kobox  = document.createElement('input');
-            kobox.type = 'checkbox';
-            kobox.id   = 'media__keepopen';
-            if(DokuCookie.getValue('keepopen')){
-                kobox.checked  = true;
-                kobox.defaultChecked = true; //IE wants this
-                media_manager.keepopen = true;
-            }
-            dw_addEvent(kobox,'click',function(event){ return media_manager.togglekeepopen(event,this); });
-
-            var kolbl  = document.createElement('label');
-            kolbl.htmlFor   = 'media__keepopen';
-            kolbl.innerHTML = LANG['keepopen'];
-
-            var kobr = document.createElement('br');
-
-            obj.appendChild(kobox);
-            obj.appendChild(kolbl);
-            obj.appendChild(kobr);
+        if (opener) {
+            opts.push(['keepopen', 'keepopen']);
         }
+        opts.push(['hide', 'hidedetails']);
 
-        // hide details
-        var hdbox  = document.createElement('input');
-        hdbox.type = 'checkbox';
-        hdbox.id   = 'media__hide';
-        if(DokuCookie.getValue('hide')){
-            hdbox.checked = true;
-            hdbox.defaultChecked = true; //IE wants this
-            media_manager.hide    = true;
-        }
-        dw_addEvent(hdbox,'click',function(event){ return media_manager.togglehide(event,this); });
+        jQuery.each(opts,
+            function (_, opt) {
+                var $box, $lbl;
+                $box = jQuery(document.createElement('input'))
+                    .attr('type', 'checkbox')
+                    .attr('id', 'media__' + opt[0])
+                    .click(bind(dw_mediamanager.toggleOption, opt[0]));
 
-        var hdlbl  = document.createElement('label');
-        hdlbl.htmlFor   = 'media__hide';
-        hdlbl.innerHTML = LANG['hidedetails'];
+                if (DokuCookie.getValue(opt[0])) {
+                    $box.prop('checked', true);
+                    dw_mediamanager[opt[0]] = true;
+                }
 
-        var hdbr = document.createElement('br');
+                $lbl = jQuery(document.createElement('label'))
+                    .attr('for', 'media__' + opt[0])
+                    .text(LANG[opt[1]]);
 
-        obj.appendChild(hdbox);
-        obj.appendChild(hdlbl);
-        obj.appendChild(hdbr);
-        media_manager.updatehide();
+                $obj.append($box, $lbl, document.createElement('br'));
+            });
+
+        dw_mediamanager.updatehide();
     },
 
     /**
-     * Toggles the keep open state
+     * Generalized toggler
      *
-     * @author Andreas Gohr <andi@splitbrain.org>
+     * @author Pierre Spring <pierre.spring@caillou.ch>
      */
-    togglekeepopen: function(event,cb){
-        if(cb.checked){
-            DokuCookie.setValue('keepopen',1);
-            media_manager.keepopen = true;
-        }else{
-            DokuCookie.setValue('keepopen','');
-            media_manager.keepopen = false;
+    toggleOption: function (variable) {
+        if (jQuery(this).prop('checked')) {
+            DokuCookie.setValue(variable, 1);
+            dw_mediamanager[variable] = true;
+        } else {
+            DokuCookie.setValue(variable, '');
+            dw_mediamanager[variable] = false;
         }
-    },
-
-    /**
-     * Toggles the hide details state
-     *
-     * @author Andreas Gohr <andi@splitbrain.org>
-     */
-    togglehide: function(event,cb){
-        if(cb.checked){
-            DokuCookie.setValue('hide',1);
-            media_manager.hide = true;
-        }else{
-            DokuCookie.setValue('hide','');
-            media_manager.hide = false;
+        if (variable === 'hide') {
+            dw_mediamanager.updatehide();
         }
-        media_manager.updatehide();
     },
 
     /**
@@ -184,596 +850,111 @@ var media_manager = {
      *
      * @author Andreas Gohr <andi@splitbrain.org>
      */
-    updatehide: function(){
-        var obj = $('media__content');
-        if(!obj) return;
-        var details = getElementsByClass('detail',obj,'div');
-        for(var i=0; i<details.length; i++){
-            if(media_manager.hide){
-                details[i].style.display = 'none';
-            }else{
-                details[i].style.display = '';
-            }
-        }
+    updatehide: function () {
+        jQuery('#media__content').find('div.detail').dw_toggle(!dw_mediamanager.hide);
     },
 
     /**
-     * shows the popup for a image link
+     * set media insertion option
+     *
+     * @author Dominik Eckelmann <eckelmann@cosmocode.de>
      */
-    select: function(event,link){
-        var id = link.name.substr(2);
-
-        media_manager.id = id;
-        if(!opener){
-            // if we don't run in popup display example
-            var ex = $('ex'+id.replace(/:/g,'_'));
-            if(ex.style.display == ''){
-                ex.style.display = 'none';
-            } else {
-                ex.style.display = '';
-            }
-            return false;
-        }
-
-        media_manager.ext = false;
-        var dot = id.lastIndexOf(".");
-        if (dot != -1) {
-            var ext = id.substr(dot,id.length);
-
-            if (ext != '.jpg' && ext != '.jpeg' && ext != '.png' && ext != '.gif' && ext != '.swf') {
-                media_manager.insert(null);
-                return false;
-            }
+    setOpt: function (opt, e) {
+        var val, i;
+        if (typeof e !== 'undefined') {
+            val = this.id.substring(this.id.length - 1);
         } else {
-            media_manager.insert(null);
-            return false;
+            val = dw_mediamanager.getOpt(opt);
         }
 
-        media_manager.popup.style.display = 'inline';
-        media_manager.popup.style.left = event.pageX + 'px';
-        media_manager.popup.style.top = event.pageY + 'px';
-
-        // set all buttons to outset
-        for (var i = 1; i < 5; i++) {
-            media_manager.outSet('media__linkbtn' + i);
-            media_manager.outSet('media__alignbtn' + i);
-            media_manager.outSet('media__sizebtn' + i);
+        if (val === false) {
+            DokuCookie.setValue(opt, '');
+            dw_mediamanager[opt] = false;
+            return;
         }
 
-        if (ext == '.swf') {
-            media_manager.ext = 'swf';
-
-            // disable display buttons for detail and linked image
-            $('media__linkbtn1').style.display = 'none';
-            $('media__linkbtn2').style.display = 'none';
-
-            // set the link button to default
-            if (media_manager.link !== false) {
-                if ( media_manager.link == '2' || media_manager.link == '1')  {
-                    media_manager.inSet('media__linkbtn3');
-                    media_manager.link = '3';
-                    DokuCookie.setValue('link','3');
-                } else {
-                    media_manager.inSet('media__linkbtn'+media_manager.link);
-                }
-            } else if (DokuCookie.getValue('link')) {
-                if ( DokuCookie.getValue('link') == '2' ||  DokuCookie.getValue('link') == '1')  {
-                    // this options are not availible
-                    media_manager.inSet('media__linkbtn3');
-                    media_manager.link = '3';
-                    DokuCookie.setValue('link','3');
-                } else {
-                    media_manager.inSet('media__linkbtn'+DokuCookie.getValue('link'));
-                    media_manager.link = DokuCookie.getValue('link');
-                }
-            } else {
-                // default case
-                media_manager.link = '3';
-                media_manager.inSet('media__linkbtn3');
-                DokuCookie.setValue('link','3');
+        if (opt === 'link') {
+            if (val !== '4' && dw_mediamanager.link === '4') {
+                dw_mediamanager.unforbid('linkonly');
+                dw_mediamanager.setOpt('align');
+                dw_mediamanager.setOpt('size');
+            } else if (val === '4') {
+                dw_mediamanager.forbid('linkonly', {align: false, size: false});
             }
 
-            // disable button for original size
-            $('media__sizebtn4').style.display = 'none';
-            if (media_manager.size == 4) {
-                media_manager.size = 2;
-                DokuCookie.setValue('size', '2');
-                media_manager.inSet('media__sizebtn2');
-            }
-
-        } else {
-            media_manager.ext = 'img';
-
-            // ensure that the display buttons are there
-            $('media__linkbtn1').style.display = 'inline';
-            $('media__linkbtn2').style.display = 'inline';
-            $('media__sizebtn4').style.display = 'inline';
-
-            // set the link button to default
-            if (DokuCookie.getValue('link')) {
-                media_manager.link = DokuCookie.getValue('link');
-            }
-            if (!media_manager.link) {
-                // default case
-                media_manager.link = '1';
-                DokuCookie.setValue('link','1');
-            }
-            media_manager.inSet('media__linkbtn'+media_manager.link);
+            jQuery("#media__size, #media__align").dw_toggle(val !== '4');
         }
 
-        if (media_manager.link == '4') {
-            media_manager.align = false;
-            media_manager.size = false;
-            $('media__align').style.display = 'none';
-            $('media__size').style.display = 'none';
-        } else {
-            $('media__align').style.display = 'block';
-            $('media__size').style.display = 'block';
+        DokuCookie.setValue(opt, val);
+        dw_mediamanager[opt] = val;
 
-            // set the align button to default
-            if (media_manager.align !== false) {
-                media_manager.inSet('media__alignbtn'+media_manager.align);
-            } else if (DokuCookie.getValue('align')) {
-                media_manager.inSet('media__alignbtn'+DokuCookie.getValue('align'));
-                media_manager.align = DokuCookie.getValue('align');
-            } else {
-                // default case
-                media_manager.align = '1';
-                media_manager.inSet('media__alignbtn1');
-                DokuCookie.setValue('align','1');
-            }
-
-            // set the size button to default
-            if (DokuCookie.getValue('size')) {
-                media_manager.size = DokuCookie.getValue('size');
-            }
-            if (!media_manager.size || (media_manager.size === '4' && ext === '.swf')) {
-                // default case
-                media_manager.size = '2';
-                DokuCookie.setValue('size','2');
-            }
-            media_manager.inSet('media__sizebtn'+media_manager.size);
-
-            $('media__sendbtn').focus();
+        for (i = 1; i <= 4; i++) {
+            jQuery("#media__" + opt + "btn" + i).removeClass('selected');
         }
-
-       return false;
+        jQuery('#media__' + opt + 'btn' + val).addClass('selected');
     },
 
-    /**
-     * build the popup window
-     *
-     * @author Dominik Eckelmann <eckelmann@cosmocode.de>
-     */
-    initpopup: function() {
-
-        media_manager.popup = document.createElement('div');
-        media_manager.popup.setAttribute('id','media__popup');
-        media_manager.popup.style.display = 'none';
-
-        var root = document.getElementById('media__manager');
-        if (root === null) return;
-        root.appendChild(media_manager.popup);
-
-        var headline    = document.createElement('h1');
-        headline.innerHTML = LANG.mediatitle;
-        var headlineimg = document.createElement('img');
-        headlineimg.src = DOKU_BASE + 'lib/images/close.png';
-        headlineimg.id  = 'media__closeimg';
-        dw_addEvent(headlineimg,'click',function(event){ return media_manager.closePopup(event,this); });
-        headline.insertBefore(headlineimg, headline.firstChild);
-        media_manager.popup.appendChild(headline);
-        drag.attach(media_manager.popup,headline);
-
-        // link
-
-        var linkp = document.createElement('p');
-
-        linkp.id = "media__linkstyle";
-        if (media_manager.display == "2") {
-            linkp.style.display = "none";
-        }
-
-        var linkl = document.createElement('label');
-        linkl.innerHTML = LANG.mediatarget;
-        linkp.appendChild(linkl);
-
-        var linkbtns = ['lnk', 'direct', 'nolnk', 'displaylnk'];
-        for (var i = 0 ; i < linkbtns.length ; ++i) {
-            var linkbtn = document.createElement('button');
-            linkbtn.className = 'button';
-            linkbtn.id    = "media__linkbtn" + (i+1);
-            linkbtn.title = LANG['media' + linkbtns[i]];
-            linkbtn.style.borderStyle = 'outset';
-            dw_addEvent(linkbtn,'click',function(event){ return media_manager.setlink(event,this); });
-
-            var linkimg = document.createElement('img');
-            linkimg.src = DOKU_BASE + 'lib/images/media_link_' + linkbtns[i] + '.png';
-
-            linkbtn.appendChild(linkimg);
-            linkp.appendChild(linkbtn);
-        }
-
-        media_manager.popup.appendChild(linkp);
-
-        // align
-
-        var alignp    = document.createElement('p');
-        var alignl    = document.createElement('label');
-
-        alignp.appendChild(alignl);
-        alignp.id = 'media__align';
-        if (media_manager.display == "2") {
-            alignp.style.display = "none";
-        }
-        alignl.innerHTML = LANG['mediaalign'];
-
-        var alignbtns = ['noalign', 'left', 'center', 'right'];
-        for (var n = 0 ; n < alignbtns.length ; ++n) {
-            var alignbtn = document.createElement('button');
-            var alignimg = document.createElement('img');
-            alignimg.src = DOKU_BASE + 'lib/images/media_align_' + alignbtns[n] + '.png';
-
-            alignbtn.id    = "media__alignbtn" + (n+1);
-            alignbtn.title = LANG['media' + alignbtns[n]];
-            alignbtn.className = 'button';
-            alignbtn.appendChild(alignimg);
-            alignbtn.style.borderStyle = 'outset';
-            dw_addEvent(alignbtn,'click',function(event){ return media_manager.setalign(event,this); });
-
-            alignp.appendChild(alignbtn);
-        }
-
-        media_manager.popup.appendChild(alignp);
-
-        // size
-
-        var sizep    = document.createElement('p');
-        var sizel    = document.createElement('label');
-
-        sizep.id = 'media__size';
-        if (media_manager.display == "2") {
-            sizep.style.display = "none";
-        }
-        sizep.appendChild(sizel);
-        sizel.innerHTML = LANG['mediasize'];
-
-        var sizebtns = ['small', 'medium', 'large', 'original'];
-        for (var size = 0 ; size < sizebtns.length ; ++size) {
-            var sizebtn = document.createElement('button');
-            var sizeimg = document.createElement('img');
-
-            sizep.appendChild(sizebtn);
-            sizeimg.src = DOKU_BASE + 'lib/images/media_size_' + sizebtns[size] + '.png';
-
-            sizebtn.className = 'button';
-            sizebtn.appendChild(sizeimg);
-            sizebtn.id    = 'media__sizebtn' + (size + 1);
-            sizebtn.title = LANG['media' + sizebtns[size]];
-            sizebtn.style.borderStyle = 'outset';
-            dw_addEvent(sizebtn,'click',function(event){ return media_manager.setsize(event,this); });
-        }
-
-        media_manager.popup.appendChild(sizep);
-
-        // send and close button
-
-        var btnp = document.createElement('p');
-        media_manager.popup.appendChild(btnp);
-        btnp.setAttribute('class','btnlbl');
-
-        var btn  = document.createElement('input');
-        btn.type = 'button';
-        btn.id   = 'media__sendbtn';
-        btn.setAttribute('class','button');
-        btn.value = LANG['mediainsert'];
-        btnp.appendChild(btn);
-        dw_addEvent(btn,'click',function(event){ return media_manager.insert(event); });
+    unforbid: function (group) {
+        delete dw_mediamanager.forbidden_opts[group];
     },
 
-    /**
-     * Insert the clicked image into the opener's textarea
-     *
-     * @author Andreas Gohr <andi@splitbrain.org>
-     * @author Dominik Eckelmann <eckelmann@cosmocode.de>
-     */
-    insert: function(event){
-        var id = media_manager.id;
-        // set syntax options
-        $('media__popup').style.display = 'none';
-
-        var opts       = '';
-        var optsstart  = '';
-        var alignleft  = '';
-        var alignright = '';
-
-        if (media_manager.ext == 'img' || media_manager.ext == 'swf') {
-
-            if (media_manager.link == '4') {
-                    opts = '?linkonly';
-            } else {
-
-                if (media_manager.link == "3" && media_manager.ext == 'img') {
-                    opts = '?nolink';
-                    optsstart = true;
-                } else if (media_manager.link == "2" && media_manager.ext == 'img') {
-                    opts = '?direct';
-                    optsstart = true;
-                }
-
-                var s = parseInt(media_manager.size, 10);
-
-                if (s && s >= 1) {
-                    opts += (optsstart)?'&':'?';
-                    if (s=="1") {
-                        opts += '100';
-                        if (media_manager.ext == 'swf') {
-                            opts += 'x62';
-                        }
-                    } else if (s=="2") {
-                        opts += '200';
-                        if (media_manager.ext == 'swf') {
-                            opts += 'x123';
-                        }
-                    } else if (s=="3"){
-                        opts += '300';
-                        if (media_manager.ext == 'swf') {
-                            opts += 'x185';
-                        }
-                    }
-                }
-                if (media_manager.align == '2') {
-                    alignleft = '';
-                    alignright = ' ';
-                }
-                if (media_manager.align == '3') {
-                    alignleft = ' ';
-                    alignright = ' ';
-                }
-                if (media_manager.align == '4') {
-                    alignleft = ' ';
-                    alignright = '';
-                }
-            }
-        }
-        var edid = String.prototype.match.call(document.location, /&edid=([^&]+)/);
-        edid = edid ? edid[1] : 'wiki__text';
-        opener.insertTags(edid,'{{'+alignleft+id+opts+alignright+'|','}}','');
-
-        if(!media_manager.keepopen) window.close();
-        opener.focus();
-        return false;
+    forbid: function (group, forbids) {
+        dw_mediamanager.forbidden_opts[group] = forbids;
     },
 
-    /**
-     * list the content of a namespace using AJAX
-     *
-     * @author Andreas Gohr <andi@splitbrain.org>
-     */
-    list: function(event,link){
-        // prepare an AJAX call to fetch the subtree
-        var ajax = new sack(DOKU_BASE + 'lib/exe/ajax.php');
-        ajax.AjaxFailedAlert = '';
-        ajax.encodeURIString = false;
-        if(ajax.failed) return true;
-
-        cleanMsgArea();
-
-        var content = $('media__content');
-        content.innerHTML = '<img src="'+DOKU_BASE+'lib/images/loading.gif" alt="..." class="load" />';
-
-        ajax.elementObj = content;
-        ajax.afterCompletion = function(){
-            media_manager.selectorattach(content);
-            media_manager.confirmattach(content);
-            media_manager.updatehide();
-            media_manager.initFlashUpload();
-        };
-        ajax.runAJAX(link.search.substr(1)+'&call=medialist');
-        return false;
+    allowedOpt: function (opt, val) {
+        var ret = true;
+        jQuery.each(dw_mediamanager.forbidden_opts,
+            function (_, forbids) {
+                ret = forbids[opt] !== false &&
+                    jQuery.inArray(val, forbids[opt]) === -1;
+                return ret;
+            });
+        return ret;
     },
 
+    getOpt: function (opt) {
+        var allowed = bind(dw_mediamanager.allowedOpt, opt);
 
-    /**
-     * Open or close a subtree using AJAX
-     *
-     * @author Andreas Gohr <andi@splitbrain.org>
-     */
-    toggle: function(event,clicky){
-        var listitem = clicky.parentNode;
-
-        // if already open, close by removing the sublist
-        var sublists = listitem.getElementsByTagName('ul');
-        if(sublists.length){
-            listitem.removeChild(sublists[0]);
-            clicky.src = DOKU_BASE+'lib/images/plus.gif';
-            return false;
+        // Current value
+        if (dw_mediamanager[opt] !== false && allowed(dw_mediamanager[opt])) {
+            return dw_mediamanager[opt];
         }
 
-        // get the enclosed link (is always the first one)
-        var link = listitem.getElementsByTagName('a')[0];
-
-        // prepare an AJAX call to fetch the subtree
-        var ajax = new sack(DOKU_BASE + 'lib/exe/ajax.php');
-        ajax.AjaxFailedAlert = '';
-        ajax.encodeURIString = false;
-        if(ajax.failed) return true;
-
-        //prepare the new ul
-        var ul = document.createElement('ul');
-        //fixme add classname here
-        listitem.appendChild(ul);
-        ajax.elementObj = ul;
-        ajax.afterCompletion = function(){ media_manager.treeattach(ul); };
-        ajax.runAJAX(link.search.substr(1)+'&call=medians');
-        clicky.src = DOKU_BASE+'lib/images/minus.gif';
-        return false;
-    },
-
-    /**
-     * Prefills the wikiname.
-     *
-     * @author Andreas Gohr <andi@splitbrain.org>
-     */
-    suggest: function(){
-        var file = $('upload__file');
-        var name = $('upload__name');
-        if(!file || !name) return;
-
-        var text = file.value;
-        text = text.substr(text.lastIndexOf('/')+1);
-        text = text.substr(text.lastIndexOf('\\')+1);
-        name.value = text;
-    },
-
-
-    initFlashUpload: function(){
-        if(!hasFlash(8)) return;
-        var oform  = $('dw__upload');
-        var oflash = $('dw__flashupload');
-        if(!oform || !oflash) return;
-
-        var clicky = document.createElement('img');
-        clicky.src     = DOKU_BASE+'lib/images/multiupload.png';
-        clicky.title   = LANG['mu_btn'];
-        clicky.alt     = LANG['mu_btn'];
-        clicky.style.cursor = 'pointer';
-        clicky.onclick = function(){
-                            oform.style.display  = 'none';
-                            oflash.style.display = '';
-                         };
-        oform.appendChild(clicky);
-    },
-
-    /**
-     * closes the link type popup
-     */
-    closePopup: function(event) {
-        $('media__popup').style.display = 'none';
-    },
-
-    /**
-     * set the align
-     *
-     * @author Dominik Eckelmann <eckelmann@cosmocode.de>
-     */
-    setalign: function(event,cb){
-
-        var id = cb.id.substring(cb.id.length -1);
-        if(id){
-            DokuCookie.setValue('align',id);
-            media_manager.align = id;
-            for (var i = 1; i<=4; i++) {
-                media_manager.outSet("media__alignbtn" + i);
-            }
-            media_manager.inSet("media__alignbtn"+id);
-        }else{
-            DokuCookie.setValue('align','');
-            media_manager.align = false;
+        // From cookie
+        if (DokuCookie.getValue(opt) && allowed(DokuCookie.getValue(opt))) {
+            return DokuCookie.getValue(opt);
         }
-    },
-    /**
-     * set the link type
-     *
-     * @author Dominik Eckelmann <eckelmann@cosmocode.de>
-     */
-    setlink: function(event,cb){
-        var id = cb.id.substring(cb.id.length -1);
-        if(id){
-            DokuCookie.setValue('link',id);
-            for (var i = 1; i<=4; i++) {
-                media_manager.outSet("media__linkbtn"+i);
-            }
-            media_manager.inSet("media__linkbtn"+id);
 
-            var size = document.getElementById("media__size");
-            var align = document.getElementById("media__align");
-            if (id != '4') {
-                size.style.display  = "block";
-                align.style.display = "block";
-                if (media_manager.link == '4') {
-                    media_manager.align = '1';
-                    DokuCookie.setValue('align', '1');
-                    media_manager.inSet('media__alignbtn1');
-
-                    media_manager.size = '2';
-                    DokuCookie.setValue('size', '2');
-                    media_manager.inSet('media__sizebtn2');
-                }
-
-            } else {
-                size.style.display  = "none";
-                align.style.display = "none";
-            }
-            media_manager.link = id;
-        }else{
-            DokuCookie.setValue('link','');
-            media_manager.link = false;
+        // size default
+        if (opt === 'size' && allowed('2')) {
+            return '2';
         }
-    },
 
-    /**
-     * set the display type
-     *
-     * @author Dominik Eckelmann <eckelmann@cosmocode.de>
-     */
-    setdisplay: function(event,cb){
-        if(cb.value){
-            DokuCookie.setValue('display',cb.value);
-            media_manager.display = cb.value;
-            media_manager.outSet("media__displaybtn1");
-            media_manager.outSet("media__displaybtn2");
-            media_manager.inSet("media__displaybtn"+cb.value);
-
-        }else{
-            DokuCookie.setValue('display','');
-            media_manager.align = false;
-        }
-    },
-
-    /**
-     * sets the border to outset
-     */
-    outSet: function(id) {
-        var ele = document.getElementById(id);
-        if (ele == null) return;
-        ele.style.borderStyle = "outset";
-    },
-    /**
-     * sets the border to inset
-     */
-    inSet: function(id) {
-        var ele = document.getElementById(id);
-        if (ele == null) return;
-        ele.style.borderStyle = "inset";
-    },
-
-    /**
-     * set the image size
-     *
-     * @author Dominik Eckelmann <eckelmann@cosmocode.de>
-     */
-    setsize: function(event,cb){
-        var id = cb.id.substring(cb.id.length -1);
-        if (id) {
-            DokuCookie.setValue('size',id);
-            media_manager.size = id;
-            for (var i = 1 ; i <=4 ; ++i) {
-                media_manager.outSet("media__sizebtn" + i);
-            }
-            media_manager.inSet("media__sizebtn"+id);
-        } else {
-            DokuCookie.setValue('size','');
-            media_manager.width = false;
-        }
+        // Whatever is allowed, and be it false
+        return jQuery.grep(['1', '2', '3', '4'], allowed)[0] || false;
     }
 };
 
-addInitEvent(function(){
-    media_manager.treeattach($('media__tree'));
-    media_manager.selectorattach($('media__content'));
-    media_manager.confirmattach($('media__content'));
-    media_manager.attachoptions($('media__opts'));
-    media_manager.initpopup();
-    media_manager.initFlashUpload();
-});
+/**
+ * Default implementation for the media manager's select action
+ *
+ * Can be overriden with the onselect URL parameter. Is called on the opener context
+ *
+ * @param {string} edid
+ * @param {string} mediaid
+ * @param {string} opts
+ * @param {string} align [none, left, center, right]
+ */
+function dw_mediamanager_item_select(edid, mediaid, opts, align) {
+    var alignleft = '';
+    var alignright = '';
+    if (align !== '1') {
+        alignleft = align === '2' ? '' : ' ';
+        alignright = align === '4' ? '' : ' ';
+    }
+
+    insertTags(edid, '{{' + alignleft + mediaid + opts + alignright + '|', '}}', '');
+}
+
+jQuery(dw_mediamanager.init);

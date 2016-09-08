@@ -1,4 +1,4 @@
-Nova uzulo estis registrata. Jen la detaloj:
+Nova uzanto registriĝis. Jen la detaloj:
 
 Uzantonomo: @NEWUSER@
 Kompleta nomo: @NEWNAME@
@@ -8,7 +8,3 @@ Dato: @DATE@
 Foliumilo: @BROWSER@
 IP-Adreso: @IPADDRESS@
 Provizanto: @HOSTNAME@
-
--- 
-Tiu ĉi mesaĝo estis kreita de DokuWiki ĉe
-@DOKUWIKIURL@

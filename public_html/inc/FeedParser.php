@@ -15,8 +15,8 @@ class FeedParser extends SimplePie {
     /**
      * Constructor. Set some defaults
      */
-    function FeedParser(){
-        $this->SimplePie();
+    function __construct(){
+        parent::__construct();
         $this->enable_cache(false);
         $this->set_file_class('FeedParser_File');
     }
@@ -47,15 +47,17 @@ class FeedParser_File extends SimplePie_File {
      *
      * We ignore all given parameters - they are set in DokuHTTPClient
      */
-    function FeedParser_File($url, $timeout=10, $redirects=5,
-                             $headers=null, $useragent=null, $force_fsockopen=false) {
-        parent::__construct();
+    function __construct($url, $timeout=10, $redirects=5,
+                         $headers=null, $useragent=null, $force_fsockopen=false) {
         $this->http    = new DokuHTTPClient();
         $this->success = $this->http->sendRequest($url);
 
         $this->headers = $this->http->resp_headers;
         $this->body    = $this->http->resp_body;
         $this->error   = $this->http->error;
+
+        $this->method  = SIMPLEPIE_FILE_SOURCE_REMOTE | SIMPLEPIE_FILE_SOURCE_FSOCKOPEN;
+
         return $this->success;
     }
 

@@ -1,0 +1,7 @@
+base     default
+author   Mark R. Evans
+email    mark@glfusion.org
+date     2014-05-01
+name     glFusion Default Template
+desc     glFusion CMS Template integrated with Nouveau and Default themes
+url      http://www.glfusion.org

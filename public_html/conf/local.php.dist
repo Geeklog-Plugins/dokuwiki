@@ -8,9 +8,17 @@
  * you automatically.
  */
 
+$conf['title']       = 'Documentation Wiki';  //what to show in the title
+$conf['start']       = 'start';          //name of start page
+$conf['lang']        = 'en';             //your language
+$conf['template']    = 'dokuwiki';       //see lib/tpl directory (options glfusion or dokuwiki)
+$conf['breadcrumbs'] = 0;                //how many recent visited pages to show
+$conf['youarehere']  = 1;                //show "You are here" navigation? 0|1
+$conf['disableactions'] = 'backlink,register,resendpwd,profile,profile_delete,check,subscribens,unsubscribens';
 
-//$conf['title']       = 'My Wiki';        //what to show in the title
-
-//$conf['useacl']      = 1;                //Use Access Control Lists to restrict access?
-//$conf['superuser']   = 'joe';
-
+$conf['useacl']      = 1;                //Use Access Control Lists to restrict access?
+$conf['autopasswd']  = 0;                //autogenerate passwords and email them to user
+$conf['authtype']    = 'authglfusion';   //which authentication backend should be used
+$conf['defaultgroup']= 'user';           //Default groups new Users are added to
+$conf['superuser']   = '@Root';          //The admin can be user or @group or comma separated list user1,@group1,user2
+$conf['manager']     = '@Root';          //The manager can be user or @group or comma separated list user1,@group1,user2

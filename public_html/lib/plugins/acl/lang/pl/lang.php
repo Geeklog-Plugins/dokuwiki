@@ -1,8 +1,8 @@
 <?php
+
 /**
- * polish language file
- *
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
+ * 
  * @author Grzegorz Żur <grzegorz.zur@gmail.com>
  * @author Mariusz Kujawski <marinespl@gmail.com>
  * @author Maciej Kurczewski <pipijajko@gmail.com>
@@ -11,10 +11,13 @@
  * @author Leszek Stachowski <shazarre@gmail.com>
  * @author maros <dobrimaros@yahoo.pl>
  * @author Grzegorz Widła <dzesdzes@gmail.com>
+ * @author Łukasz Chmaj <teachmeter@gmail.com>
+ * @author Begina Felicysym <begina.felicysym@wp.eu>
+ * @author Aoi Karasu <aoikarasu@gmail.com>
  */
 $lang['admin_acl']             = 'Zarządzanie uprawnieniami';
-$lang['acl_group']             = 'Grupa';
-$lang['acl_user']              = 'Użytkownik';
+$lang['acl_group']             = 'Grupa:';
+$lang['acl_user']              = 'Użytkownik:';
 $lang['acl_perms']             = 'Uprawnienia użytkownika';
 $lang['page']                  = 'Strona';
 $lang['namespace']             = 'Katalog';

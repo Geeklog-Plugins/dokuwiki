@@ -1,7 +1,8 @@
 <?php
+
 /**
- * German language file
- *
+ * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
+ * 
  * @author Leo Moll <leo@yeasoft.com>
  * @author Florian Anderiasch <fa@art-core.org>
  * @author Robin Kluth <commi1993@gmail.com>
@@ -13,6 +14,8 @@
  * @author Robert Bogenschneider <robog@gmx.de>
  * @author Niels Lange <niels@boldencursief.nl>
  * @author Christian Wichmann <nospam@zone0.de>
+ * @author Paul Lachewsky <kaeptn.haddock@gmail.com>
+ * @author Pierre Corell <info@joomla-praxis.de>
  */
 $lang['name']                  = 'Popularitäts-Feedback (Eventuell längere Ladezeit)';
 $lang['submit']                = 'Daten senden';

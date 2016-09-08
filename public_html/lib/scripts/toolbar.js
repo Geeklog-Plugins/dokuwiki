@@ -1,4 +1,3 @@
-
 // used to identify pickers
 var pickercounter=0;
 
@@ -12,54 +11,60 @@ var pickercounter=0;
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function initToolbar(tbid,edid,tb, allowblock){
-    var toolbar = $(tbid);
-    if(!toolbar) return;
-    var edit = $(edid);
-    if(!edit) return;
-    if(edit.readOnly) return;
+    var $toolbar, $edit;
+    if (typeof tbid == 'string') {
+        $toolbar = jQuery('#' + tbid);
+    } else {
+        $toolbar = jQuery(tbid);
+    }
+
+    $edit = jQuery('#' + edid);
+
+    if ($toolbar.length == 0 || $edit.length == 0 || $edit.attr('readOnly')) {
+        return;
+    }
 
     if (typeof allowblock === 'undefined') {
         allowblock = true;
     }
 
     //empty the toolbar area:
-    toolbar.innerHTML='';
+    $toolbar.html('');
 
-    var cnt = tb.length;
-    for(var i=0; i<cnt; i++){
-        if (!allowblock && tb[i].block === true) {
-            continue;
+    jQuery.each(tb, function (k, val) {
+        if (!tb.hasOwnProperty(k) || (!allowblock && val.block === true)) {
+            return;
         }
-        var actionFunc;
+        var actionFunc, $btn;
 
-        // create new button
-        var btn = createToolButton(tb[i]['icon'],
-                                   tb[i]['title'],
-                                   tb[i]['key'],
-                                   tb[i]['id'],
-                                   tb[i]['class']);
-
+        // create new button (jQuery object)
+        $btn = jQuery(createToolButton(val.icon, val.title, val.key, val.id,
+                                       val['class']));
 
         // type is a tb function -> assign it as onclick
-        actionFunc = 'tb_'+tb[i]['type'];
-        if( isFunction(window[actionFunc]) ){
-            dw_addEvent(btn,'click', bind(window[actionFunc],btn,tb[i],edid));
-            toolbar.appendChild(btn);
-            continue;
+        actionFunc = 'tb_'+val.type;
+        if( jQuery.isFunction(window[actionFunc]) ){
+            $btn.bind('click', bind(window[actionFunc],$btn,val,edid) );
+            $toolbar.append($btn);
+            return;
         }
 
         // type is a init function -> execute it
-        actionFunc = 'addBtnAction'+tb[i]['type'].charAt(0).toUpperCase()+tb[i]['type'].substring(1);
-        if( isFunction(window[actionFunc]) ){
-            if(window[actionFunc](btn, tb[i], edid)){
-                toolbar.appendChild(btn);
+        actionFunc = 'addBtnAction'+val.type.charAt(0).toUpperCase()+val.type.substring(1);
+        if( jQuery.isFunction(window[actionFunc]) ){
+            var pickerid = window[actionFunc]($btn, val, edid);
+            if(pickerid !== ''){
+                $toolbar.append($btn);
+                $btn.attr('aria-controls', pickerid);
+                if (actionFunc === 'addBtnActionPicker') {
+                    $btn.attr('aria-haspopup', 'true');
+                }
             }
-            continue;
+            return;
         }
 
-        alert('unknown toolbar type: '+tb[i]['type']+'  '+actionFunc);
-    } // end for
-
+        alert('unknown toolbar type: '+val.type+'  '+actionFunc);
+    });
 }
 
 /**
@@ -72,13 +77,10 @@ function initToolbar(tbid,edid,tb, allowblock){
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function tb_format(btn, props, edid) {
-    var sample = props['title'];
-    if(props['sample']){
-        sample = props['sample'];
-    }
+    var sample = props.sample || props.title;
     insertTags(edid,
-               fixtxt(props['open']),
-               fixtxt(props['close']),
+               fixtxt(props.open),
+               fixtxt(props.close),
                fixtxt(sample));
     pickerClose();
     return false;
@@ -97,30 +99,27 @@ function tb_format(btn, props, edid) {
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function tb_formatln(btn, props, edid) {
-    var sample = props['title'];
-    if(props['sample']){
-        sample = props['sample'];
-    }
-    sample = fixtxt(sample);
+    var sample = props.sample || props.title,
+        opts,
+        selection = DWgetSelection(jQuery('#'+edid)[0]);
 
-    props['open']  = fixtxt(props['open']);
-    props['close'] = fixtxt(props['close']);
+    sample = fixtxt(sample);
+    props.open  = fixtxt(props.open);
+    props.close = fixtxt(props.close);
 
     // is something selected?
-    var opts;
-    var selection = getSelection($(edid));
     if(selection.getLength()){
         sample = selection.getText();
         opts = {nosel: true};
     }else{
         opts = {
-            startofs: props['open'].length,
-            endofs: props['close'].length
+            startofs: props.open.length,
+            endofs: props.close.length
         };
     }
 
-    sample = sample.split("\n").join(props['close']+"\n"+props['open']);
-    sample = props['open']+sample+props['close'];
+    sample = sample.split("\n").join(props.close+"\n"+props.open);
+    sample = props.open+sample+props.close;
 
     pasteText(selection,sample,opts);
 
@@ -138,7 +137,7 @@ function tb_formatln(btn, props, edid) {
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function tb_insert(btn, props, edid) {
-    insertAtCarret(edid,fixtxt(props['insert']));
+    insertAtCarret(edid,fixtxt(props.insert));
     pickerClose();
     return false;
 }
@@ -153,9 +152,9 @@ function tb_insert(btn, props, edid) {
  */
 function tb_mediapopup(btn, props, edid) {
     window.open(
-        DOKU_BASE+props['url']+encodeURIComponent(NS)+'&edid='+encodeURIComponent(edid),
-        props['name'],
-        props['options']);
+        DOKU_BASE+props.url+encodeURIComponent(NS)+'&edid='+encodeURIComponent(edid),
+        props.name,
+        props.options);
     return false;
 }
 
@@ -170,16 +169,16 @@ function tb_mediapopup(btn, props, edid) {
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function tb_autohead(btn, props, edid){
-    var lvl = currentHeadlineLevel(edid);
+    var lvl = currentHeadlineLevel(edid),
+        tags;
 
     // determine new level
-    lvl += props['mod'];
+    lvl += props.mod;
     if(lvl < 1) lvl = 1;
     if(lvl > 5) lvl = 5;
 
-    var tags = '=';
-    for(var i=0; i<=5-lvl; i++) tags += '=';
-    insertTags(edid, tags+' ', ' '+tags+"\n", props['text']);
+    tags = (new Array(8 - lvl)).join('=');
+    insertTags(edid, tags+' ', ' '+tags+"\n", props.text);
     pickerClose();
     return false;
 }
@@ -188,20 +187,26 @@ function tb_autohead(btn, props, edid){
 /**
  * Add button action for picker buttons and create picker element
  *
- * @param  DOMElement btn   Button element to add the action to
+ * @param  jQuery      btn   Button element to add the action to
  * @param  array      props Associative array of button properties
  * @param  string     edid  ID of the editor textarea
  * @return boolean    If button should be appended
  * @author Gabriel Birke <birke@d-scribe.de>
  */
-function addBtnActionPicker(btn, props, edid) {
+function addBtnActionPicker($btn, props, edid) {
     var pickerid = 'picker'+(pickercounter++);
-    createPicker(pickerid, props, edid);
-    dw_addEvent(btn,'click',function(){
-        pickerToggle(pickerid,btn);
-        return false;
-    });
-    return true;
+    var picker = createPicker(pickerid, props, edid);
+    jQuery(picker).attr('aria-hidden', 'true');
+
+    $btn.click(
+        function(e) {
+            pickerToggle(pickerid,$btn);
+            e.preventDefault();
+            return '';
+        }
+    );
+
+    return pickerid;
 }
 
 /**
@@ -213,33 +218,45 @@ function addBtnActionPicker(btn, props, edid) {
  * @return boolean    If button should be appended
  * @author Andreas Gohr <gohr@cosmocode.de>
  */
-function addBtnActionLinkwiz(btn, props, edid) {
-    linkwiz.init($(edid));
-    dw_addEvent(btn,'click',function(){
-        linkwiz.toggle();
-        return false;
+function addBtnActionLinkwiz($btn, props, edid) {
+    dw_linkwiz.init(jQuery('#'+edid));
+    jQuery($btn).click(function(e){
+        dw_linkwiz.val = props;
+        dw_linkwiz.toggle();
+        e.preventDefault();
+        return '';
     });
-    return true;
+    return 'link__wiz';
 }
 
+
 /**
- * Show/Hide a previosly created picker window
+ * Show/Hide a previously created picker window
  *
  * @author Andreas Gohr <andi@splitbrain.org>
  */
-function pickerToggle(pickerid,btn){
-    var picker = $(pickerid);
-    if(picker.style.marginLeft == '-10000px'){
-        var x = findPosX(btn);
-        var y = findPosY(btn);
-        picker.style.left = (x+3)+'px';
-        picker.style.top = (y+btn.offsetHeight+3)+'px';
-        picker.style.marginLeft = '0px';
-        picker.style.marginTop  = '0px';
-    }else{
-        picker.style.marginLeft = '-10000px';
-        picker.style.marginTop  = '-10000px';
+function pickerToggle(pickerid,$btn){
+    var $picker = jQuery('#' + pickerid),
+        pos = $btn.offset();
+    if ($picker.hasClass('a11y')) {
+        $picker.removeClass('a11y').attr('aria-hidden', 'false');
+    } else {
+        $picker.addClass('a11y').attr('aria-hidden', 'true');
     }
+    var picker_left = pos.left + 3,
+        picker_width = $picker.width(),
+        window_width = jQuery(window).width();
+    if (picker_width > 300) {
+        $picker.css("max-width", "300");
+        picker_width = 300;
+    }
+    if ((picker_left + picker_width + 40) > window_width) {
+        picker_left = window_width - picker_width - 40;
+    }
+    if (picker_left < 0) {
+        picker_left = 0;
+    }
+    $picker.offset({left: picker_left, top: pos.top+$btn[0].offsetHeight+3});
 }
 
 /**
@@ -248,11 +265,7 @@ function pickerToggle(pickerid,btn){
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function pickerClose(){
-    var pobjs = getElementsByClass('picker');
-    for(var i=0; i<pobjs.length; i++){
-        pobjs[i].style.marginLeft = '-10000px';
-        pobjs[i].style.marginTop  = '-10000px';
-    }
+    jQuery('.picker').addClass('a11y');
 }
 
 
@@ -263,3 +276,7 @@ function fixtxt(str){
     return str.replace(/\\n/g,"\n");
 }
 
+jQuery(function () {
+    initToolbar('tool__bar','wiki__text',toolbar);
+    jQuery('#tool__bar').attr('role', 'toolbar');
+});
