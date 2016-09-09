@@ -20,7 +20,7 @@ header('X-UA-Compatible: IE=edge,chrome=1');
     <script type="text/javascript" src="<?php echo $_CONF['site_url'] ?>/javascript/jquery/jquery.min.js"></script>
     <script type="text/javascript" src="<?php echo $_CONF['site_url'] ?>/javascript/jquery/jquery-ui.min.js"></script>
     <script>(function(H){H.className=H.className.replace(/\bno-js\b/,'js')})(document.documentElement)</script>
-    <?php tpl_metaheaders(); $outputHandle = outputHandler::getInstance(); echo $outputHandle->renderHeader('raw');?>
+    <?php tpl_metaheaders(); echo plugin_getheadercode_dokuwiki();?>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <?php echo tpl_favicon(array('favicon', 'mobile')) ?>
     <?php tpl_includeFile('meta.html') ?>

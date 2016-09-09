@@ -21,7 +21,7 @@ if (!defined('DOKU_INC')) die();
     <?php echo hsc($lang['mediaselect'])?>
     [<?php echo strip_tags($conf['title'])?>]
   </title>
-  <?php tpl_metaheaders(); $outputHandle = outputHandler::getInstance(); echo $outputHandle->renderHeader('raw');?>
+  <?php tpl_metaheaders(); echo plugin_getheadercode_dokuwiki();?>
   <link rel="shortcut icon" href="<?php echo DOKU_TPL?>images/favicon.ico" />
 </head>
 
