@@ -1,0 +1,58 @@
+Notes regarding converting glFusion DokuWiki Plugin 4.0.1 to Geeklog DokuWiki Plugin 1.9.0
+
+glFusion DokuWiki Plugin v4.0.1
+https://www.glfusion.org/filemgmt/index.php/260
+
+Geeklog DokuWiki Plugin v1.8.0 (for reference)
+https://www.geeklog.net/downloads/index.php/1064
+
+
+DockuWiki Plugin Removed Files
+T:\GitHub\geeklog\plugins\dokuwiki\plugin.xml
+T:\GitHub\geeklog\plugins\dokuwiki\dokuwiki.php
+T:\GitHub\geeklog\plugins\dokuwiki\upgrade.php
+
+
+DokuWiki Updated Files
+
+T:\GitHub\geeklog\plugins\dokuwiki\security.inc
+- Added file with extra glfusion security functions
+
+
+T:\GitHub\geeklog\public_html\dokuwiki\docs\english\dokuwiki.html
+- Added config docs for DokuWiki Geeklog Admin configuration
+
+T:\GitHub\geeklog\plugins\dokuwiki\english.php
+T:\GitHub\geeklog\plugins\dokuwiki\english_utf-8.php
+- Changed glFusion to Geeklog
+- Modified DokuWiki to Wiki for menu
+
+T:\GitHub\geeklog\plugins\dokuwiki\functions.inc
+- changed GVERSION to VERSION and update config and language parts near beginning 
+- updated function _dw_admin_header, _dw_footer, plugin_dopluginsearch_dokuwiki, plugin_getwhatsnew_dokuwiki, plugin_upgrade_dokuwiki
+- updated function plugin_access_dokuwiki (changed COM_404 to COM_handle404)
+- added function plugin_getheadercode_dokuwiki, plugin_autouninstall_dokuwiki, plugin_whatsnewsupported_dokuwiki, plugin_getdocumentationurl_dokuwiki, plugin_getconfigtooltip_dokuwiki
+
+T:\GitHub\geeklog\plugins\dokuwiki\autoinstall.php
+
+
+UPDATED DOCUWIKI integrated files from glFusion (T:\GitHub\geeklog\public_html\dokuwiki)
+
+T:\GitHub\geeklog\public_html\dokuwiki\conf\local.php (rename local.php.dist)
+T:\GitHub\geeklog\public_html\dokuwiki\conf\acl.auth.php (rename acl.auth.php.dist)
+
+T:\GitHub\geeklog\public_html\dokuwiki\lib\tpl\dokuwiki\mediamanager.php
+T:\GitHub\geeklog\public_html\dokuwiki\lib\tpl\glfusion\mediamanager.php
+- Replaced outputHandler calls
+
+T:\GitHub\geeklog\public_html\dokuwiki\inc\template.php
+- updated function _tpl_metaheaders_action
+
+T:\GitHub\geeklog\public_html\dokuwiki\inc\toolbar.php
+- Comment out linkwiz toolbar button in array as it doesn't seem to work and prevents rest of buttons after it from showing up.
+
+
+Notes & Bugs
+
+- URL Rewrite stuff in function.inc using $conf (need to mage sure works with URL routing as well)
+- Check Upgraded plugin from 1.8.0
