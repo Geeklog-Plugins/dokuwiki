@@ -148,7 +148,7 @@ function toolbar_JSdefines($varname){
                             ),
                 'block'  => true
                 ),
-
+/*
            array(
                 'type'   => 'linkwiz',
                 'title'  => $lang['qb_link'],
@@ -158,6 +158,7 @@ function toolbar_JSdefines($varname){
                 'close'  => ']]',
                 'block'  => false
                 ),
+*/
            array(
                 'type'   => 'format',
                 'title'  => $lang['qb_extlink'],
