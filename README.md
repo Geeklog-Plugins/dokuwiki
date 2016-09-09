@@ -88,7 +88,7 @@ All other DokuWiki configuration settings can be customized to meet your specifi
 
 ### DokuWiki Templates
 
-DokuWiki's layout can be customized through templates (aka. skins). The DokuWiki Integration Plugin must use a customized DokuWiki template to properly integrate the look and feel of the Geeklog site. Included with the plugin are two customized skins; Geeklog and dokuwiki.  Geeklog is the original skin used by DokuWiki until late 2012.  The **dokuwiki** skin is a customized version of the standard DokuWiki theme that works with Geeklog.
+DokuWiki's layout can be customized through templates (aka. skins). The DokuWiki Integration Plugin must use a customized DokuWiki template to properly integrate the look and feel of the Geeklog site. Included with the plugin are two customized skins; glfusion and dokuwiki.  glfusion is the original skin used by DokuWiki until late 2012.  The **dokuwiki** skin is a customized version of the standard DokuWiki theme that works with Geeklog.
 
 ### Using DokuWiki
 
