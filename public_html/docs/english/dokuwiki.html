@@ -1,0 +1,92 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+<head>
+  <title>Geeklog Forum Plugin Documentation</title>
+  <link rel="stylesheet" type="text/css" href="/docs/docstyle.css" title="Dev Stylesheet">
+</head>
+
+<body>
+<h1>Geeklog DokuWiki Plugin Documentation</h1>
+
+<p>The following information explains the configuration options, autotags and templates of the Geeklog DokuWiki plugin. For install or upgrade instructions please visit the <a href="https://github.com/Geeklog-Plugins/dokuwiki" target="_blank">DokuWiki GitHub page</a>.</p>
+
+<p>For all usage questions and documentation on how to utilize DokuWiki, please refer to the DokuWiki Web Site at: <a href="https://www.dokuwiki.org/wiki:dokuwiki" target="_blank">https://www.dokuwiki.org/wiki:dokuwiki</a></p>
+
+<h2><a name="config.php">Configuration</a></h2>
+
+<p>Most DokuWiki configuration options is accessible via DokuWiki's own Administration page (Configuration Settings) found under the Geeklog Command and Control panel.</p>
+
+<p>The configuration relating directly to the DokuWiki plugin which affects Geeklog can be changed from the Geeklog Configuration admin panel:</p>
+
+<h3><a name="config_main">General DokuWiki Settings</a></h3>
+
+<table class="config">
+<tr><th style="width:25%">Variable</th>
+    <th style="width:25%">Default Value</th>
+    <th style="width:50%">Description</th>
+</tr>
+<tr>
+  <td><a name="desc_enable_whats_new">enable_whats_new</a></td>
+  <td>1</td>
+  <td>When set to 1, .</td>
+</tr>
+<tr class="r2">
+  <td><a name="desc_whats_new_days">whats_new_days</a></td>
+  <td>14</td>
+  <td>Set this to the number of days that will be included in the What's New block.</td>
+</tr>
+<tr>
+  <td><a name="desc_whatsnew_length">whatsnew_length</a></td>
+  <td>24</td>
+  <td>Set this to the maximum number of characters wide you will allow listings in the What's New block. Truncated items will have a … appended to the end.</td>
+</tr>
+<tr class="r2">
+  <td><a name="desc_loginrequired">loginrequired</a></td>
+  <td>0</td>
+  <td>Set this to TRUE (1) to require a user to be logged into the site before granting access to DokuWiki. Set to 0 to allow non-logged in users access.</td>
+</tr>
+<tr>
+  <td><a name="desc_restrict_to_group">restrict_to_group</a></td>
+  <td>''</td>
+  <td>If you want only allow access to DokuWiki for a specific group, place that group name in the input field. The group name must appear exactly as it does in the Geeklog Group Editor. Leave the entry blank to allow all groups access to DokuWiki.</td>
+</tr>
+<tr class="r2">
+  <td><a name="desc_disable_search_integration">disable_search_integration</a></td>
+  <td>0</td>
+  <td>Set this to TRUE (1) to disable search integration with Geeklog's main search feature. Set to FALSE (0) to allow DokuWiki results to be displayed in Geeklog's main search.</td>
+</tr>
+<tr>
+  <td><a name="desc_displayblocks">displayblocks</a></td>
+  <td>0</td>
+  <td>Select whether the left / right / both / or none display.</td>
+</tr>
+<tr class="r2">
+  <td><a name="desc_public_dir">public_dir</a></td>
+  <td>'/dokuwiki/'</td>
+  <td>If you would like to rename the directory where DokuWiki resides inside Geeklog's public_html/ directory, change the name here.</td>
+</tr>
+</table>
+
+<h2><a name="templates">Template Files</a></h2>
+
+<p>DokuWiki's layout can be customized through templates (aka. skins). The DokuWiki Integration Plugin must use a customized DokuWiki template to properly integrate the look and feel of the Geeklog site. Included with the plugin are two customized skins; glfusion and dokuwiki. glfusion is the original skin used by DokuWiki until late 2012. The dokuwiki skin is a customized version of the standard DokuWiki theme that works with Geeklog.</p>
+
+<p>To update the layout of your DokuWiki template, you can change some settings via DokuWiki's own Administration. If more advanced changes are required you can modify the template files directly. The tempalte files are located here:</p>
+
+<p style="margin-left:4em;"><tt>/path/to/geeklog/public_html/dokuwiki/lib/tpl</tt></p>
+
+<h2><a name="autotags">Autotags</a></h2>
+
+<p>The DokuWiki Plugin provides one <a href="http://www.geeklog.net/article.php/autolinks" title="geeklog.net: About Autolinks and Autotags">autotag</a>,
+<code>[wiki:]</code>. You can use this autotag to display a link to a wiki page using the wiki page title as the link text. 
+An alternate title may be specified but is not required.</p>
+
+<p>For example, the following autotags will translate to:</p>
+<ul>
+<li><code>[wiki:start]</code> will be translated to: <code>&lt;a href="http://www.yoursite.com/dokuwiki/doku.php?id=start"&gt;start&lt;/a&gt;</code></li>
+<li><code>[wiki:start click to visit wiki page]</code> will be translated to: <code>&lt;a href="http://www.yoursite.com/dokuwiki/doku.php?id=start"&gt;click to visit wiki page&lt;/a&gt;</code></li>
+</ul>
+
+
+</body>
+</html>
