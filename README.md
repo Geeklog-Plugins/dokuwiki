@@ -1,6 +1,8 @@
 ## DokuWiki Integration Plugin for Geeklog CMS
 Version: 1.9.0 (based on glFusion DokuWiki plugin v4.0.1)
+
 Integration Developed by: Mark R. Evans - http://www.glfusion.org
+
 Converted for use with Geeklog by: Tom Homer - https://www.geeklog.net
 
 > **DokuWiki requires that your Geeklog site use UTF-8 encoding.  If your site is not configured for UTF-8 encoding, do not install this plugin.**
