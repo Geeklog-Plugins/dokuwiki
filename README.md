@@ -86,7 +86,7 @@ There are a few protected DokuWiki configuration options that cannot be edited:
   - Password encryption method
   - Superuser
 
-All other DokuWiki configuration settings can be customized to meet your specific needs. For full details on each configuration option, please see http://wiki.splitbrain.org/wiki:config
+All other DokuWiki configuration settings can be customized to meet your specific needs. For full details on each configuration option, please see https://www.dokuwiki.org/config
 
 ### DokuWiki Templates
 
