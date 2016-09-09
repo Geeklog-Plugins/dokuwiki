@@ -704,68 +704,62 @@ function _dw_footer()
  */
 function plugin_upgrade_dokuwiki()
 {
-    global $_CONF, $_TABLES;
+    global $_CONF, $_TABLES, $_DW_CONF;
 
-    $installed_version = DB_getItem($_TABLES['plugins'], 'pi_version',
-                                    "pi_name = 'dokuwiki'");
+    $installed_version = DB_getItem($_TABLES['plugins'], 'pi_version', "pi_name = 'dokuwiki'");
     $code_version = plugin_chkVersion_dokuwiki();
-    if ($installed_version == $code_version) {
-        // nothing to do
-        return true;
-    }
+    if ($installed_version == $code_version) return true; // nothing to do
 
     require_once $_CONF['path'] . 'plugins/dokuwiki/autoinstall.php';
+    if (!plugin_compatible_with_this_version_dokuwiki('dokuwiki')) return 3002;
 
-    if (! plugin_compatible_with_this_version_dokuwiki('dokuwiki')) {
-        return 3002;
+    $current_version = $installed_version;
+    $done = false;
+    while (!$done) {
+        switch ($current_version) {
+            case "1.8.0" :
+                // SQL Statements
+                DB_query("UPDATE {$_TABLES['plugins']} SET pi_homepage='https://www.geeklog.net' WHERE pi_name='dokuwiki'",1);
+                
+                // Config Options
+                require_once $_CONF['path'] . 'plugins/dokuwiki/install_defaults.php';
+                $c = config::get_instance();
+                
+                $me = 'dokuwiki';
+                
+                //$c->del('menulabel', $me);
+                // Delete all config values and groups for dokuwiki
+                DB_delete($_TABLES['conf_values'], 'group_name', $me);
+
+                // Add in new config groups and options
+                $c->add('sg_main', NULL, 'subgroup', 0, 0, NULL, 0, true, $me);
+                $c->add('dw_public', NULL, 'fieldset', 0, 0, NULL, 0, true, $me);
+
+                $c->add('enable_whats_new', $_DW_DEFAULT['enable_whats_new'], 'select',0, 0, 0, 10, true, $me);
+                $c->add('whats_new_days', $_DW_DEFAULT['whats_new_days'],'text',0, 0, 0, 20, true, $me);
+                $c->add('whatsnew_length', $_DW_DEFAULT['whatsnew_length'],'text',0, 0, 0, 30, true, $me);
+                $c->add('loginrequired', $_DW_DEFAULT['loginrequired'], 'select',0, 0, 0, 40, true, $me);
+                $c->add('restrict_to_group', $_DW_DEFAULT['restrict_to_group'],'text',0, 0, 0, 50, true, $me);
+                $c->add('disable_search_integration', $_DW_DEFAULT['disable_search_integration'], 'select',0, 0, 0, 60, true, $me);
+                $c->add('displayblocks', $_DW_DEFAULT['displayblocks'], 'select',0, 0, 1, 70, true, $me);
+                $c->add('public_dir', $_DW_DEFAULT['public_dir'],'text',0, 0, 0, 80, true, $me);                
+                
+                // All finished
+                $current_version = "1.9.0";
+                
+                break;
+
+            default:
+                $done = true;
+                break;
+        }
     }
 
-    // other update code goes here
-
-    // update plugin version number
-    $inst_parms = plugin_autoinstall_dokuwiki('dokuwiki');
-    $pi_gl_version = $inst_parms['info']['pi_gl_version'];
-	
-	if (! isset($_DW_CONF['displayblocks'])) {
-	    require_once $_CONF['path'] . 'plugins/dokuwiki/install_defaults.php';
-        $c = config::get_instance();
-		
-        //This is main subgroup #0
-		$c->add('sg_main', NULL, 'subgroup', 0, 0, NULL, 0, true, 'dokuwiki');
-		
-		//Main settings   
-		$c->add('fs_main', NULL, 'fieldset', 0, 0, NULL, 0, true, 'dokuwiki');
-		$c->add('menulabel', $_DW_DEFAULT['menulabel'],
-                'text', 0, 0, 0, 1, true, 'dokuwiki');
-        $c->add('enable_whats_new', $_DW_DEFAULT['enable_whats_new'],
-                'select', 0, 0, 3, 2, true, 'dokuwiki');
-		$c->add('whats_new_days', $_DW_DEFAULT['whats_new_days'],
-                'text', 0, 0, 0, 3, true, 'dokuwiki');
-		$c->add('whatsnew_length', $_DW_DEFAULT['whatsnew_length'],
-                'text', 0, 0, 0, 4, true, 'dokuwiki');
-		$c->add('loginrequired', $_DW_DEFAULT['loginrequired'],
-                'select', 0, 0, 3, 5, true, 'dokuwiki');
-		$c->add('restrict_to_group', $_DW_DEFAULT['restrict_to_group'],
-                'text', 0, 0, 0, 6, true, 'dokuwiki');
-		$c->add('disable_search_integration', $_DW_DEFAULT['disable_search_integration'],
-                'select', 0, 0, 3, 7, true, 'dokuwiki');
-		$c->add('public_dir', $_DW_DEFAULT['public_dir'],
-                'text', 0, 0, 0, 8, true, 'dokuwiki');
-		$c->add('displayblocks', $_DW_DEFAULT['displayblocks'],
-                'select', 0, 0, 20, 9, true, 'dokuwiki');
-	}
-
-
-    DB_query("UPDATE {$_TABLES['plugins']} SET pi_version = '$code_version', pi_gl_version = '$pi_gl_version' WHERE pi_name = 'dokuwiki'");
+    DB_query("UPDATE {$_TABLES['plugins']} SET pi_version = '$code_version', pi_gl_version = '$installed_version' WHERE pi_name = 'dokuwiki'");
 	COM_errorLog('DokuWiki plugin was successfully updated to version ' . $code_version . '.');
 
     return true;
 }
-
-
-
-
-
 
 function plugin_getheadercode_dokuwiki()
 {
