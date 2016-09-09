@@ -71,7 +71,7 @@ function plugin_access_dokuwiki()
     if ($_DW_CONF['restrict_to_group'] != '' ) {
         if ( !SEC_inGroup($_DW_CONF['restrict_to_group']) ) {
             COM_errorLog("Someone has tried to access a restricted DokuWiki page.  User id: {$_USER['uid']}, Username: {$_USER['username']}, IP: $REMOTE_ADDR",1);
-            COM_404();
+            COM_handle404();
             exit;
         }
     }
@@ -652,12 +652,42 @@ function _dw_footer()
     $finalPage = '';
     $ptitle = tpl_pagetitle(null,1);
     $wikiPage = ob_get_clean();
+
+    switch( $_DW_CONF['displayblocks'] ) {
+        case 0 :
+        case 2 :
+            $what = 'menu';
+            break;
+        case 1 :
+        case 3 :
+            $what = 'none';
+            break;
+        default :
+            $what = 'menu';
+            break;
+    }
+    
+    switch( $_DW_CONF['displayblocks'] ) {
+        case 0 :
+        case 3 :
+            $rightblock = false;
+            break;
+        case 1 :
+        case 2 :
+            $finalPage .= COM_siteFooter( true );
+            $rightblock = true;
+            break;
+        default :
+            $rightblock = false;
+            break;
+    }
     
     $display = COM_createHTMLDocument(
         $wikiPage,
         array(
-            'pagetitle'  => $ptitle,
-            'rightblock' => $_DW_CONF['displayblocks'],
+            'what'          => $what, 
+            'pagetitle'     => $ptitle,
+            'rightblock'    => $rightblock,
         )
     );
     
