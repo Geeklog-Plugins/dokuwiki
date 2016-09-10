@@ -54,9 +54,9 @@ Once you have renamed the distribution files (new installs only, upgrades do not
 
 ### Upgrading DokuWiki
 
-The upgrade process is identical to the installation process, simply upload the distribution from the Plugin Administration page.
+The upgrade process is identical to the installation process, simply upload the distribution from the Plugin Administration page. All your wiki pages will be left as they are since they will not be copied over.
 
-Also, once the upgrade is complete, you should go into the DokuWiki admin link and double check your configuration options.  There are a couple of new options you need to set.
+Also, once the upgrade is complete, you should go into the DokuWiki admin link and double check your configuration options.  There may be a couple of new options you need to set.
 
 ### Configuring DokuWiki
 
