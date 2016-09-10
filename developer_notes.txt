@@ -29,7 +29,7 @@ T:\GitHub\geeklog\plugins\dokuwiki\english_utf-8.php
 
 T:\GitHub\geeklog\plugins\dokuwiki\functions.inc
 - changed GVERSION to VERSION and update config and language parts near beginning 
-- updated function _dw_admin_header, _dw_footer, plugin_dopluginsearch_dokuwiki, plugin_getwhatsnew_dokuwiki, plugin_upgrade_dokuwiki
+- updated function _dw_admin_header, _dw_footer, plugin_dopluginsearch_dokuwiki, plugin_getwhatsnew_dokuwiki, plugin_upgrade_dokuwiki, plugin_chkVersion_dokuwiki
 - updated function plugin_access_dokuwiki (changed COM_404 to COM_handle404)
 - added function plugin_getheadercode_dokuwiki, plugin_autouninstall_dokuwiki, plugin_whatsnewsupported_dokuwiki, plugin_getdocumentationurl_dokuwiki, plugin_getconfigtooltip_dokuwiki
 

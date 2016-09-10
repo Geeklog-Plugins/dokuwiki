@@ -35,7 +35,6 @@ DokuWiki has the following system requirements:
 
 > DokuWiki must have write permissions to the public_html/dokuwiki/data/ directory and all directories below it. The plugin installer will check these permissions, please ensure they are writable by your web server.
 
-
 This integration is based on Geeklog v2.1.1 and it will not work with older versions of Geeklog.
 
 This plugin includes all the required DokuWiki distribution files, so there is no need to download the standalone DokuWiki release. This plugin is based on DokuWiki 2016-06-26a "Elenor of Tsort" which is the latest release at the time of this writing.
@@ -45,6 +44,13 @@ Several internal DokuWiki files have been modified to make DokuWiki work as a pl
 ### INSTALLATION
 
 The DokuWiki Integration Plugin uses the Geeklog automated plugin installer. Simply upload the distribution using the Geeklog plugin installer located in the **Plugin Administration** page.
+
+Once you have the files loaded onto your web server, you will need to rename or copy the following .dist files to their corresponding .php file:
+
+- public_html/conf/acl.auth.php.dist to acl.auth.php
+- public_html/conf/local.php.dist to local.php
+
+Once you have renamed the distribution files (new installs only, upgrades do not need to copy these files), you can now tell Geeklog to install the plugin. Go to the Plugin Administration screen and select the install icon from the plugin list. 
 
 ### Upgrading DokuWiki
 

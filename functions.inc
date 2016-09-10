@@ -22,7 +22,6 @@ include_once ($_CONF['path'] . 'plugins/dokuwiki/security.inc');
 * Language file Include
 */
 $langfile = $_CONF['path'] . 'plugins/dokuwiki/language/' . $_CONF['language'] . '.php';
-
 if (file_exists ($langfile)) {
     include_once ($langfile);
 } else {
@@ -39,7 +38,13 @@ $_DW_CONF = $c->get_config('dokuwiki');
 
 if(!defined('DOKU_INC')) define('DOKU_INC',$_CONF['path_html'] . $_DW_CONF['public_dir']);
 
-include $_CONF['path_html'].$_DW_CONF['public_dir'].'conf/local.php';
+
+$wikifile = $_CONF['path_html'].$_DW_CONF['public_dir'].'conf/local.php';
+if (file_exists ($wikifile)) {
+    include_once ($wikifile);
+} else {
+COM_errorLog("DokuWiki is setup incorrectly. Cannot find file 'local.php'. Most likely the config value public_dir which equals {$_DW_CONF['public_dir']} is incorrect. Looking here for file: $wikifile",1);
+}
 
 if (isset($_USER['language']) ) {
     $lang = $_USER['language'];
@@ -161,9 +166,13 @@ function plugin_cclabel_dokuwiki()
 */
 function plugin_chkVersion_dokuwiki()
 {
-    global $_DW_CONF;
+    global $_CONF;
 
-    return $_DW_CONF['pi_version'];
+    require_once $_CONF['path'] . 'plugins/dokuwiki/autoinstall.php';          
+
+    $inst_parms = plugin_autoinstall_dokuwiki('dokuwiki'); 
+
+    return $inst_parms['info']['pi_version'];
 }
 
 
@@ -704,7 +713,7 @@ function _dw_footer()
  */
 function plugin_upgrade_dokuwiki()
 {
-    global $_CONF, $_TABLES, $_DW_CONF;
+    global $_CONF, $_TABLES;
 
     $installed_version = DB_getItem($_TABLES['plugins'], 'pi_version', "pi_name = 'dokuwiki'");
     $code_version = plugin_chkVersion_dokuwiki();
@@ -720,13 +729,15 @@ function plugin_upgrade_dokuwiki()
             case "1.8.0" :
                 // SQL Statements
                 DB_query("UPDATE {$_TABLES['plugins']} SET pi_homepage='https://www.geeklog.net' WHERE pi_name='dokuwiki'",1);
+                DB_query("UPDATE {$_TABLES['plugins']} SET pi_gl_version='2.1.1' WHERE pi_name='dokuwiki'",1);
                 
                 // Config Options
                 require_once $_CONF['path'] . 'plugins/dokuwiki/install_defaults.php';
                 $c = config::get_instance();
+                $_DW_CONF = $c->get_config('dokuwiki'); // Get old config values
                 
                 $me = 'dokuwiki';
-                
+              
                 //$c->del('menulabel', $me);
                 // Delete all config values and groups for dokuwiki
                 DB_delete($_TABLES['conf_values'], 'group_name', $me);
@@ -735,14 +746,14 @@ function plugin_upgrade_dokuwiki()
                 $c->add('sg_main', NULL, 'subgroup', 0, 0, NULL, 0, true, $me);
                 $c->add('dw_public', NULL, 'fieldset', 0, 0, NULL, 0, true, $me);
 
-                $c->add('enable_whats_new', $_DW_DEFAULT['enable_whats_new'], 'select',0, 0, 0, 10, true, $me);
-                $c->add('whats_new_days', $_DW_DEFAULT['whats_new_days'],'text',0, 0, 0, 20, true, $me);
-                $c->add('whatsnew_length', $_DW_DEFAULT['whatsnew_length'],'text',0, 0, 0, 30, true, $me);
-                $c->add('loginrequired', $_DW_DEFAULT['loginrequired'], 'select',0, 0, 0, 40, true, $me);
-                $c->add('restrict_to_group', $_DW_DEFAULT['restrict_to_group'],'text',0, 0, 0, 50, true, $me);
-                $c->add('disable_search_integration', $_DW_DEFAULT['disable_search_integration'], 'select',0, 0, 0, 60, true, $me);
-                $c->add('displayblocks', $_DW_DEFAULT['displayblocks'], 'select',0, 0, 1, 70, true, $me);
-                $c->add('public_dir', $_DW_DEFAULT['public_dir'],'text',0, 0, 0, 80, true, $me);                
+                $c->add('enable_whats_new', $_DW_CONF['enable_whats_new'], 'select',0, 0, 0, 10, true, $me);
+                $c->add('whats_new_days', $_DW_CONF['whats_new_days'],'text',0, 0, 0, 20, true, $me);
+                $c->add('whatsnew_length', $_DW_CONF['whatsnew_length'],'text',0, 0, 0, 30, true, $me);
+                $c->add('loginrequired', $_DW_CONF['loginrequired'], 'select',0, 0, 0, 40, true, $me);
+                $c->add('restrict_to_group', $_DW_CONF['restrict_to_group'],'text',0, 0, 0, 50, true, $me);
+                $c->add('disable_search_integration', $_DW_CONF['disable_search_integration'], 'select',0, 0, 0, 60, true, $me);
+                $c->add('displayblocks', $_DW_CONF['displayblocks'], 'select',0, 0, 1, 70, true, $me);
+                $c->add('public_dir', $_DW_CONF['public_dir'],'text',0, 0, 0, 80, true, $me);                
                 
                 // All finished
                 $current_version = "1.9.0";
@@ -755,7 +766,7 @@ function plugin_upgrade_dokuwiki()
         }
     }
 
-    DB_query("UPDATE {$_TABLES['plugins']} SET pi_version = '$code_version', pi_gl_version = '$installed_version' WHERE pi_name = 'dokuwiki'");
+    DB_query("UPDATE {$_TABLES['plugins']} SET pi_version = '$code_version' WHERE pi_name = 'dokuwiki'");
 	COM_errorLog('DokuWiki plugin was successfully updated to version ' . $code_version . '.');
 
     return true;
