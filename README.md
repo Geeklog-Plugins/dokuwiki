@@ -11,7 +11,7 @@ Converted for use with Geeklog by: Tom Homer - https://www.geeklog.net
 
 DokuWiki is a standards compliant, simple to use Wiki, mainly aimed at creating documentation of any kind. It is targeted at developer teams, work groups and small companies. It has a simple but powerful syntax which makes sure the data files  remain readable outside the Wiki and eases the creation of structured texts. All data is stored in plain text files - no database is required.
 
-The DokuWiki Integration Plugin for Geeklog provides an integration with your Geeklog v1.5.0+ website. This plugin is based on DokuWiki 2016-06-26a "Elenor of Tsort", the latest release available at the time of publishing this plugin release.
+The DokuWiki Integration Plugin for Geeklog provides an integration with your Geeklog v2.1.1+ website. This plugin is based on DokuWiki 2016-06-26a "Elenor of Tsort", the latest release available at the time of publishing this plugin release.
 
 This plugin will provide the following features:
 
