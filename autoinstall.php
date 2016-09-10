@@ -53,7 +53,7 @@ function plugin_autoinstall_dokuwiki($pi_name)
         'pi_display_name' => $pi_display_name,
         'pi_version'      => '1.9.0',
         'pi_gl_version'   => '2.1.1',
-        'pi_homepage'     => 'https://geeklog.net'
+        'pi_homepage'     => 'https://www.geeklog.net'
     );
 
     $groups = array(
