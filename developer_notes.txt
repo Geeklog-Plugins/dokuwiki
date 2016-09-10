@@ -54,5 +54,5 @@ T:\GitHub\geeklog\public_html\dokuwiki\inc\toolbar.php
 
 Notes & Bugs
 
-- URL Rewrite stuff in function.inc using $conf (need to mage sure works with URL routing as well)
-- Check Upgraded plugin from 1.8.0
+- URL Rewrite stuff in function.inc using $conf (need to make sure works with URL routing as well)
+
