@@ -67,10 +67,10 @@ function plugin_access_dokuwiki()
     $dwsh = _hash_gensalt_private($pwd, $itoa64);
 
     if ( COM_isAnonUser() && ( $_DW_CONF['loginrequired'] == 1 || $_CONF['loginrequired'] == 1) )  {
-        $display = COM_siteHeader();
-        $display .= SEC_loginRequiredForm();
-        $display .= COM_siteFooter();
-        echo $display;
+        $display = SEC_loginRequiredForm();
+        $display = COM_createHTMLDocument($display);
+        COM_output($display);        
+        
         exit;
     }
     if ($_DW_CONF['restrict_to_group'] != '' ) {
@@ -661,6 +661,7 @@ function _dw_footer()
     $finalPage = '';
     $ptitle = tpl_pagetitle(null,1);
     $wikiPage = ob_get_clean();
+    ob_end_clean();  // added as was not cleaned and COM_createHTMLDocument adds headers and with compressed output could be problems
 
     switch( $_DW_CONF['displayblocks'] ) {
         case 0 :
@@ -683,7 +684,6 @@ function _dw_footer()
             break;
         case 1 :
         case 2 :
-            $finalPage .= COM_siteFooter( true );
             $rightblock = true;
             break;
         default :
@@ -701,6 +701,7 @@ function _dw_footer()
     );
     
     COM_output($display);
+    
     exit;
 
 }
