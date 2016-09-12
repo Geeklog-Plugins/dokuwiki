@@ -32,7 +32,7 @@ if(isset($_SERVER['HTTP_X_DOKUWIKI_DO'])) {
 
 require_once '../lib-common.php';
 if (!in_array('dokuwiki', $_PLUGINS)) {
-    COM_404();
+    COM_handle404();
     exit;
 }
 
