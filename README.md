@@ -50,9 +50,9 @@ Once you have the files loaded onto your web server, you will need to rename or 
 - public_html/conf/acl.auth.php.dist to acl.auth.php
 - public_html/conf/local.php.dist to local.php
 
-Once you have renamed the distribution files (new installs only, upgrades do not need to copy these files), you can now tell Geeklog to install the plugin. Go to the Plugin Administration screen and select the install icon from the plugin list. 
+DokuWiki also must have write permissions to the public_html/dokuwiki/data/ and public_html/dokuwiki/conf/ directories and all directories and files below it. DokuWiki will check for these permissions, so please ensure they are writable by your web server. 
 
-DokuWiki must have write permissions to the public_html/dokuwiki/data/ and public_html/dokuwiki/conf/ directories and all directories below it. DokuWiki will check for these permissions, please ensure they are writable by your web server. 
+Once you have renamed the distribution files (new installs only, upgrades do not need to copy these files) and checked the file permissions, you can now tell Geeklog to install the plugin. Go to the Plugin Administration screen and select the install icon from the plugin list. 
 
 ### Upgrading DokuWiki
 
