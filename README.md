@@ -52,6 +52,8 @@ Once you have the files loaded onto your web server, you will need to rename or 
 
 Once you have renamed the distribution files (new installs only, upgrades do not need to copy these files), you can now tell Geeklog to install the plugin. Go to the Plugin Administration screen and select the install icon from the plugin list. 
 
+DokuWiki must have write permissions to the public_html/dokuwiki/data/ and public_html/dokuwiki/conf/ directories and all directories below it. DokuWiki will check for these permissions, please ensure they are writable by your web server. 
+
 ### Upgrading DokuWiki
 
 The upgrade process is identical to the installation process, simply upload the distribution from the Plugin Administration page. All your wiki pages will be left as they are since they will not be copied over.
@@ -73,7 +75,7 @@ All Geeklog Integration's are completed in the Geeklog Configuration Manager.  T
 What's New Days   | Set this to the number of days that will be included in the What's New block.
 What's New Length | Set this to the maximum number of characters wide you will allow listings in the What's New block. Truncated items will have a … appended to the end.
 Login Required    | Set this to TRUE to require a user to be logged into the site before granting access to DokuWiki. Set to 0 to allow non-logged in users access.
-Restrict to Group | If you want only allow access to DokuWiki for a specific group, place that group name in the input field. Leave the entry blank to allow all groups access to DokuWiki.
+Restrict to Group | If you want only allow access to DokuWiki for a specific group, place that group name in the input field. Leave the entry blank to allow all groups access to DokuWiki. DokuWiki does not support spaces or _ (underscores) in the Group names. So these items are stripped from the Geeklog groups. For example, the Geeklog group Logged-in Users will become LoggedinUsers. 
 Disable Search Integration | Set this to TRUE to disable search integration with Geeklog's main search feature. Set to FALSE to allow DokuWiki results to be displayed in Geeklog's main search.
 Geeklog Left / Right Blocks  | Select whether the left / right / both / or none display.
 Public Directory  | If you would like to rename the directory where DokuWiki resides inside Geeklog's public_html/ directory, change the name here.
