@@ -16,7 +16,7 @@ $showSidebar = $hasSidebar && ($ACT=='show');
 // must be run from within DokuWiki
 if (!defined('DOKU_INC')) die();
 ?>
-    <?PHP tpl_metaheaders(); ob_start() ?>
+    <?PHP tpl_metaheaders(); ?>
     <div id="dokuwiki__site"><div id="dokuwiki__top" class="site <?php echo tpl_classes(); ?> <?php
         echo ($showSidebar) ? 'showSidebar' : ''; ?> <?php echo ($hasSidebar) ? 'hasSidebar' : ''; ?>">
 

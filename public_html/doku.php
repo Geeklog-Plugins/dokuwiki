@@ -30,6 +30,8 @@ if(isset($_SERVER['HTTP_X_DOKUWIKI_DO'])) {
     $ACT = 'show';
 }
 
+// ****************************************************************
+// Geeklog
 require_once '../lib-common.php';
 if (!in_array('dokuwiki', $_PLUGINS)) {
     COM_handle404();
@@ -40,6 +42,8 @@ if ( $ACT == 'admin' ) {
     require_once '../admin/auth.inc.php';
 }
 
+ob_start(); // Need to have output buffer start here as seems to be an issue starting it in template on some servers
+// ****************************************************************
 
 // load and initialize the core system
 require_once(DOKU_INC.'inc/init.php');

@@ -661,8 +661,7 @@ function _dw_footer()
     $finalPage = '';
     $ptitle = tpl_pagetitle(null,1);
     $wikiPage = ob_get_clean();
-    ob_end_clean();  // added as was not cleaned and COM_createHTMLDocument adds headers and with compressed output could be problems
-
+     
     switch( $_DW_CONF['displayblocks'] ) {
         case 0 :
         case 2 :

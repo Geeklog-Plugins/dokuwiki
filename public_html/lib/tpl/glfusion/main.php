@@ -11,7 +11,7 @@
 // must be run from within DokuWiki
 if (!defined('DOKU_INC')) die();
 ?>
-<?php tpl_metaheaders(); ob_start() ?>
+<?php tpl_metaheaders(); ?>
 <?php /*old includehook*/ @include(dirname(__FILE__).'/topheader.html')?>
 <div class="dokuwiki">
   <?php html_msgarea()?>

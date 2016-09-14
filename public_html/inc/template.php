@@ -1823,8 +1823,11 @@ function tpl_subscribe() {
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function tpl_flush() {
+// ****************************************************************
+// Geeklog    
 //    ob_flush();
-    flush();
+//    flush();
+// ****************************************************************
 }
 
 /**
@@ -2033,4 +2036,3 @@ function tpl_toolsevent($toolsname, $items, $view = 'main') {
 }
 
 //Setup VIM: ex: et ts=4 :
-
