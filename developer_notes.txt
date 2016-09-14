@@ -44,14 +44,16 @@ T:\GitHub\geeklog\public_html\dokuwiki\conf\local.php (rename local.php.dist)
 T:\GitHub\geeklog\public_html\dokuwiki\conf\acl.auth.php (rename acl.auth.php.dist)
 
 T:\GitHub\geeklog\public_html\dokuwiki\duku.php
+- Added geeklog libraries and ob_start() call
 - Changed COM_404 to COM_handle404
 
 T:\GitHub\geeklog\public_html\dokuwiki\lib\tpl\dokuwiki\mediamanager.php
 T:\GitHub\geeklog\public_html\dokuwiki\lib\tpl\glfusion\mediamanager.php
-- Replaced outputHandler calls
+- Replaced outputHandler calls and removed ob_start()
 
 T:\GitHub\geeklog\public_html\dokuwiki\inc\template.php
 - updated function _tpl_metaheaders_action
+- updated function tpl_flush
 
 T:\GitHub\geeklog\public_html\dokuwiki\inc\toolbar.php
 - Comment out linkwiz toolbar button in array as it doesn't seem to work and prevents rest of buttons after it from showing up.
