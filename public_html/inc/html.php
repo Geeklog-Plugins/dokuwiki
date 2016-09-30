@@ -369,7 +369,8 @@ function html_search(){
         $intro
     );
     echo $intro;
-    flush();
+    
+    //flush();
 
     //show progressbar
     print '<div id="dw__loading">'.NL;
@@ -377,8 +378,8 @@ function html_search(){
     print 'showLoadBar();'.NL;
     print '/*!]]>*/</script>'.NL;
     print '</div>'.NL;
-    flush();
-
+    //flush();
+    
     //do quick pagesearch
     $data = ft_pageLookup($QUERY,true,useHeading('navigation'));
     if(count($data)){
@@ -405,7 +406,7 @@ function html_search(){
         print '<div class="clearer"></div>';
         print '</div>';
     }
-    flush();
+    //flush();
 
     //do fulltext search
     $data = ft_pageSearch($QUERY,$regex);
@@ -425,7 +426,7 @@ function html_search(){
                 }
                 $num++;
             }
-            flush();
+            //flush();
         }
         print '</dl>';
     }else{
@@ -436,7 +437,7 @@ function html_search(){
     print '<script type="text/javascript">/*<![CDATA[*/'.NL;
     print 'hideLoadBar("dw__loading");'.NL;
     print '/*!]]>*/</script>'.NL;
-    flush();
+    //flush();
 }
 
 /**
