@@ -54,6 +54,7 @@ T:\GitHub\geeklog\public_html\dokuwiki\lib\tpl\glfusion\mediamanager.php
 T:\GitHub\geeklog\public_html\dokuwiki\lib\tpl\dokuwiki\main.php
 T:\GitHub\geeklog\public_html\dokuwiki\lib\tpl\glfusion\main.php
 - Replaced outputHandler calls and removed ob_start()
+- In glfusion template replaced any flush(); calls with tpl_flush()
 
 T:\GitHub\geeklog\public_html\dokuwiki\inc\template.php
 - updated function _tpl_metaheaders_action

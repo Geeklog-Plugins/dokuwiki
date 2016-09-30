@@ -50,7 +50,7 @@ if (!defined('DOKU_INC')) die();
     <?php }?>
 
   </div>
-  <?php flush()?>
+  <?php tpl_flush() ?>
 
   <?php /*old includehook*/ @include(dirname(__FILE__).'/pageheader.html')?>
 
@@ -62,7 +62,7 @@ if (!defined('DOKU_INC')) die();
 
   <div class="clearer"></div>
 
-  <?php flush()?>
+  <?php tpl_flush() ?>
 
   <div class="stylefoot">
 
