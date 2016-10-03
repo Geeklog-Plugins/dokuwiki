@@ -150,7 +150,7 @@ function plugin_cclabel_dokuwiki()
 {
     global $_CONF, $_DW_CONF;
 
-    if (SEC_inGroup('Root') ) {
+    if (SEC_inGroup('Root') OR SEC_inGroup('DokuWiki Admin')) {
         return array('DokuWiki',
             $_CONF['site_url'].$_DW_CONF['public_dir'].'doku.php?do=admin&amp;id=start',
             $_CONF['site_url'].$_DW_CONF['public_dir'].'dokuwiki.png');
@@ -508,7 +508,7 @@ function plugin_getadminoption_dokuwiki()
 {
     global $_CONF, $_DW_CONF;
 
-    if (SEC_inGroup('Root')) {
+    if (SEC_inGroup('Root') OR SEC_inGroup('DokuWiki Admin')) {
         return array('DokuWiki',$_CONF['site_url'] . $_DW_CONF['public_dir'] . 'doku.php?do=admin&amp;id=start','');
     }
 }
@@ -774,8 +774,15 @@ function plugin_upgrade_dokuwiki()
 
 function plugin_getheadercode_dokuwiki()
 {
-    global $_DW_HEADER, $_DW_CONF;
+    global $_DW_HEADER, $_DW_CONF, $_SCRIPTS;
 
+    // Set jQuery and UI because DokuWiki needs it. Depending on plugins installed it may need it as well
+    // Needs to be in header
+    $_SCRIPTS->setJavaScriptLibrary('jquery', false);
+    
+    // BUG WORKAROUND Need to load entire ui library so force one library. NEED TO HAVE CDN specified in Geeklog Config for this to work
+    $_SCRIPTS->setJavaScriptLibrary('jquery.ui.button', false);
+    
     // Return dokuwiki header info originally created in function _tpl_metaheaders_action and file template.php
 
     return $_DW_HEADER;

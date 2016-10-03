@@ -66,11 +66,8 @@ T:\GitHub\geeklog\public_html\dokuwiki\inc\html.php
 - Commented out flush(); php lines. This affects the DokuWiki specific search box (not the geeklog search) and affects some servers with multiple headers sent errors.
 
 
-T:\GitHub\geeklog\public_html\dokuwiki\inc\toolbar.php
-- Comment out linkwiz toolbar button in array as it doesn't seem to work and prevents rest of buttons after it from showing up.
-
 
 Notes & Bugs
 
 - URL Rewrite stuff for DokuWiki not tested. In function.inc using $conf (this appears to be the DokuWiki own config variable)
-
+- DokuWiki Admin Group for Geeklog doesn't seem to do anything
