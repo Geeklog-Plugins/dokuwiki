@@ -51,7 +51,7 @@ if (isset($_USER['language']) ) {
 } else {
     $lang = $_CONF['language'];
 }
-$conf['lang'] = $_CONF['iso_lang'];
+$conf['lang'] = COM_getLangIso639Code($lang);
 
 
 function plugin_access_dokuwiki()
@@ -782,6 +782,9 @@ function plugin_getheadercode_dokuwiki()
     
     // BUG WORKAROUND Need to load entire ui library so force one library. NEED TO HAVE CDN specified in Geeklog Config for this to work
     $_SCRIPTS->setJavaScriptLibrary('jquery.ui.button', false);
+    $_SCRIPTS->setJavaScriptLibrary('jquery.ui.datepicker', false);
+    $_SCRIPTS->setJavaScriptLibrary('jquery.ui.dialog', false);
+    $_SCRIPTS->setJavaScriptLibrary('jquery.ui.effect', false);
     
     // Return dokuwiki header info originally created in function _tpl_metaheaders_action and file template.php
 
