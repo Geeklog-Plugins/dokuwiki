@@ -776,10 +776,19 @@ function plugin_getheadercode_dokuwiki()
 {
     global $_DW_HEADER, $_DW_CONF, $_SCRIPTS;
 
-    // Set jQuery and UI because DokuWiki needs it. Depending on plugins installed it may need it as well
+    // Set jQuery and UI because DokuWiki needs it. Depending on Dokuwiki plugins installed it may need it as well
     // Needs to be in header
     $_SCRIPTS->setJavaScriptLibrary('jquery', false);
-    $_SCRIPTS->setJavaScriptLibrary('jquery-ui', false); // Requires button, datepicker, dialog, effect
+    if (COM_VersionCompare(VERSION, '2.1.2')) {
+        // Geeklog 2.1.1 and lower
+        $_SCRIPTS->setJavaScriptLibrary('jquery.ui.button', false); 
+        $_SCRIPTS->setJavaScriptLibrary('jquery.ui.datepicker', false); 
+        $_SCRIPTS->setJavaScriptLibrary('jquery.ui.dialog', false); 
+        $_SCRIPTS->setJavaScriptLibrary('jquery.ui.effect', false);         
+    } else {
+        // New in Geeklog 2.1.2 to call entire library
+        $_SCRIPTS->setJavaScriptLibrary('jquery-ui', false); // Requires button, datepicker, dialog, effect
+    }
     
     // Return dokuwiki header info originally created in function _tpl_metaheaders_action and file template.php
 
