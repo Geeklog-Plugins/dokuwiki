@@ -65,7 +65,8 @@ T:\GitHub\geeklog\public_html\dokuwiki\inc\template.php
 T:\GitHub\geeklog\public_html\dokuwiki\inc\html.php
 - Commented out flush(); php lines. This affects the DokuWiki specific search box (not the geeklog search) and affects some servers with multiple headers sent errors.
 
-
+T:\GitHub\dokuwiki\public_html\inc\utf8.php
+- Updated function utf8_strtolower to disable use of "Normalizer" class as this causes a apache crash on Geeklog.net after the server upgrade. Use mb_strtolower in function instead.
 
 Notes & Bugs
 
