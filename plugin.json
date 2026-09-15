@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "id": "dokuwiki",
+  "name": "dokuwiki",
+  "icon": "public_html/dokuwiki.png",
+  "requires": {
+    "geeklog": "2.1.1"
+  }
+}
